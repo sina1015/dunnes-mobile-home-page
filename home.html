@@ -199,7 +199,7 @@
             // Redirect to service request — try module name variants,
             // since the shell silently falls back when it can't resolve one
             // Catalog first, then the known-working service request list as fallback
-            var variants = ['servicecataloggroup', 'servicecatalog', 'serviceRequest', 'servicerequest', 'ticket'];
+            var variants = ['servicecataloggroup', 'service-catalogue', 'serviceRequest', 'servicerequest', 'ticket'];
             var opened = false;
             for (var i = 0; i < variants.length && !opened; i++) {
               try {
