@@ -191,26 +191,44 @@
       },
       methods: {
         async goToServiceRequest() {
-          if (this.navigating) return;
-          this.navigating = true;
-          try {
-            window.facilioApp.log.info('Mobile home widget: Raise Work Request tapped');
-            // Navigate to the service catalog page
-            await window.facilioApp.interface.navigateTo({
-              path: '/service-request/servicecatalog/requests'
-            });
-          } catch (error) {
-            window.facilioApp.log.error('Mobile home widget: navigation to service catalog failed', error);
-            try {
-              window.facilioApp.interface.notify({
-                title: 'Navigation failed',
-                message: 'Could not open the service catalog. Please try again.',
-                type: 'error'
-              });
-            } catch (e) { /* notify best-effort */ }
-          } finally {
-            this.navigating = false;
-          }
+  if (this.navigating) return;
+  this.navigating = true;
+
+  const log = window.facilioApp.log;
+  const iface = window.facilioApp.interface;
+
+  const attempts = [
+    { name: 'navigateTo objArg', run: () => iface.navigateTo({ path: '/service-request/servicecatalog/requests' }) },
+    { name: 'navigateTo strArg', run: () => iface.navigateTo('/service-request/servicecatalog/requests') },
+    { name: 'navigateTo with app segment', run: () => iface.navigateTo({ path: '/maintenance/service-request/servicecatalog/requests' }) },
+    { name: 'openListView serviceRequest', run: () => iface.openListView({ module: 'serviceRequest' }) }
+  ];
+
+  let succeeded = null;
+  for (const attempt of attempts) {
+    try {
+      log.info('Nav attempt: ' + attempt.name);
+      await attempt.run();
+      succeeded = attempt.name;
+      log.info('Nav SUCCESS via: ' + attempt.name);
+      break;
+    } catch (error) {
+      log.error('Nav FAILED via ' + attempt.name + ' | ' + (error && (error.message || JSON.stringify(error))), error);
+    }
+  }
+
+  if (!succeeded) {
+    try {
+      iface.notify({
+        title: 'Navigation failed',
+        message: 'Could not open the service catalog.',
+        type: 'error'
+      });
+    } catch (e) { /* best-effort */ }
+  }
+
+  this.navigating = false;
+}
         }
       }
     });
