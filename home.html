@@ -144,6 +144,11 @@
   </div>
 
   <script>
+    // Service catalog is a special v2 page (not a module list view),
+    // so it must be opened by its web URL.
+    // NOTE: sandbox URL — swap to the production org URL before go-live.
+    var CATALOG_URL = 'https://dunnesstores.faciliosandbox.co.uk/dunnesstoressandbox/maintenance/service-request/servicecatalog/requests';
+
     new Vue({
       el: '#app',
       data: {
@@ -196,22 +201,12 @@
           try {
             window.facilioApp.log.info('Mobile home widget: Raise Work Request tapped');
 
-            // Redirect to the service catalog:
-            // try the catalog as its own module first, then as a view on serviceRequest
-            try {
-              await window.facilioApp.interface.openListView({ module: 'servicecatalog' });
-              window.facilioApp.log.info('Nav OK via module servicecatalog');
-            } catch (e1) {
-              window.facilioApp.log.error('servicecatalog module failed, trying view param', e1);
-              await window.facilioApp.interface.openListView({
-                module: 'serviceRequest',
-                view: 'servicecatalog'
-              });
-              window.facilioApp.log.info('Nav OK via serviceRequest + view servicecatalog');
-            }
+            // Open the service catalog web page
+            await window.facilioApp.interface.openURL({ url: CATALOG_URL });
+            window.facilioApp.log.info('Opened service catalog via openURL');
 
           } catch (error) {
-            window.facilioApp.log.error('Mobile home widget: navigation to service catalog failed', error);
+            window.facilioApp.log.error('Mobile home widget: openURL to service catalog failed', error);
             try {
               window.facilioApp.interface.notify({
                 title: 'Navigation failed',
