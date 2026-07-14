@@ -214,10 +214,13 @@
                 window.facilioApp.log.error('navigateTo rejected: ' + pathVariants[i], e1);
               }
             }
-            // Fallback: the service request list (known working)
+
+            // Fallback: open the web catalog page (navigateTo is rejected on this mobile shell)
             if (!opened) {
-              window.facilioApp.log.info('All tab paths rejected, falling back to SR list');
-              await window.facilioApp.interface.openListView({ module: 'serviceRequest' });
+              window.facilioApp.log.info('Tab paths rejected — opening web catalog');
+              await window.facilioApp.interface.openURL({
+                url: 'https://dunnesstores.faciliosandbox.co.uk/dunnesstoressandbox/maintenance/service-request/servicecatalog/requests'
+              });
             }
 
           } catch (error) {
