@@ -133,7 +133,7 @@
   </div>
 
   <script>
-    // Fallback web page (sandbox URL — swap for production org before go-live)
+    // Fallback web page (sandbox URL — swap for the production org before go-live)
     var CATALOG_URL = 'https://dunnesstores.faciliosandbox.co.uk/dunnesstoressandbox/maintenance/service-request/servicecatalog/requests';
 
     new Vue({
@@ -193,14 +193,19 @@
 
         async loadCatalog() {
           var endpoints = [
-            '/v2/servicecatalog/list?page=1&perPage=50',
-            '/v2/servicecataloggroup/list'
+            '/v2/servicecatalog/list?page=1&perPage=50&appId=1902',
+            '/v2/servicecataloggroup/list?appId=1902',
+            'v2/servicecatalog/list?page=1&perPage=50&appId=1902',
+            '/api/v2/servicecatalog/list?page=1&perPage=50&appId=1902',
+            '/v3/modules/servicecatalog/view/all?page=1&perPage=50&viewName=all&moduleName=servicecatalog'
           ];
           for (var i = 0; i < endpoints.length; i++) {
             try {
               var resp = await window.facilioApp.request.invokeFacilioAPI(endpoints[i], { method: 'GET' });
-              // Log the raw shape once so field names can be confirmed in the Logs app
-              window.facilioApp.log.info('Catalog endpoint ' + endpoints[i] + ' -> ' + JSON.stringify(resp && resp.data).substring(0, 800));
+              window.facilioApp.log.info(
+                'Catalog try ' + i + ' [' + endpoints[i] + '] -> ' +
+                JSON.stringify(resp && resp.data).substring(0, 600)
+              );
               var list = this.extractList(resp);
               if (list.length) {
                 this.catalogItems = list.map(function (it) {
@@ -211,14 +216,14 @@
                     raw: it
                   };
                 });
-                window.facilioApp.log.info('Catalog loaded: ' + this.catalogItems.length + ' items via ' + endpoints[i]);
+                window.facilioApp.log.info('Catalog LOADED: ' + this.catalogItems.length + ' items via try ' + i);
                 return;
               }
             } catch (e) {
-              window.facilioApp.log.error('Catalog endpoint failed: ' + endpoints[i], e);
+              window.facilioApp.log.error('Catalog try ' + i + ' FAILED [' + endpoints[i] + '] ' + (e && (e.message || JSON.stringify(e))), e);
             }
           }
-          window.facilioApp.log.error('No catalog items from any endpoint');
+          window.facilioApp.log.error('Catalog: all endpoint variants empty/failed');
         },
 
         async openCatalogItem(item) {
@@ -234,7 +239,6 @@
                 formDetails: { formId: item.raw.formId }
               });
             } else {
-              // Fallback: open the web catalog page
               await window.facilioApp.interface.openURL({ url: CATALOG_URL });
             }
           } catch (error) {
