@@ -129,7 +129,7 @@
 
         <!-- Raise Work Request -->
         <button class="raise-btn" @click="goToServiceRequest">
-          <span class="raise-label">Raise Wo Request</span>
+          <span class="raise-label">Raise Work Request</span>
           <span class="raise-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -196,31 +196,36 @@
           try {
             window.facilioApp.log.info('Mobile home widget: Raise Work Request tapped');
 
-            // Redirect to service request — try module name variants,
-            // since the shell silently falls back when it can't resolve one
-            // Catalog first, then the known-working service request list as fallback
-            var variants = ['service-catalogue', 'serviceRequest', 'servicerequest', 'ticket'];
+            // The service catalog is a TAB whose route is "service-catalogue"
+            // (from Setup > Customization > Tabs and Layouts) — navigate by path
+            var pathVariants = [
+              '/service-catalogue',
+              'service-catalogue',
+              '/maintenance/service-catalogue'
+            ];
             var opened = false;
-            for (var i = 0; i < variants.length && !opened; i++) {
+            for (var i = 0; i < pathVariants.length && !opened; i++) {
               try {
-                window.facilioApp.log.info('Trying openListView module: ' + variants[i]);
-                await window.facilioApp.interface.openListView({ module: variants[i] });
+                window.facilioApp.log.info('Trying navigateTo path: ' + pathVariants[i]);
+                await window.facilioApp.interface.navigateTo({ path: pathVariants[i] });
                 opened = true;
-                window.facilioApp.log.info('openListView accepted: ' + variants[i]);
+                window.facilioApp.log.info('navigateTo accepted: ' + pathVariants[i]);
               } catch (e1) {
-                window.facilioApp.log.error('openListView rejected: ' + variants[i], e1);
+                window.facilioApp.log.error('navigateTo rejected: ' + pathVariants[i], e1);
               }
             }
+            // Fallback: the service request list (known working)
             if (!opened) {
-              throw new Error('All module name variants rejected');
+              window.facilioApp.log.info('All tab paths rejected, falling back to SR list');
+              await window.facilioApp.interface.openListView({ module: 'serviceRequest' });
             }
 
           } catch (error) {
-            window.facilioApp.log.error('Mobile home widget: navigation to serviceRequest failed', error);
+            window.facilioApp.log.error('Mobile home widget: navigation failed entirely', error);
             try {
               window.facilioApp.interface.notify({
                 title: 'Navigation failed',
-                message: 'Could not open Service Requests. Please try again.',
+                message: 'Could not open the service catalog. Please try again.',
                 type: 'error'
               });
             } catch (e) { /* notify best-effort */ }
