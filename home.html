@@ -195,15 +195,16 @@
           this.navigating = true;
           try {
             window.facilioApp.log.info('Mobile home widget: Raise Work Request tapped');
-            await window.facilioApp.interface.openListView({
-              module: 'serviceRequest'
+            // Navigate to the service catalog page
+            await window.facilioApp.interface.navigateTo({
+              path: '/service-request/servicecatalog/requests'
             });
           } catch (error) {
-            window.facilioApp.log.error('Mobile home widget: navigation to serviceRequest failed', error);
+            window.facilioApp.log.error('Mobile home widget: navigation to service catalog failed', error);
             try {
               window.facilioApp.interface.notify({
                 title: 'Navigation failed',
-                message: 'Could not open Service Requests. Please try again.',
+                message: 'Could not open the service catalog. Please try again.',
                 type: 'error'
               });
             } catch (e) { /* notify best-effort */ }
