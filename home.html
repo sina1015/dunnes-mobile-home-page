@@ -63,7 +63,7 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
-    /* ---- Raise Work Request button ---- */
+    /* ---- Service Catalog button ---- */
     .raise-btn {
       width: 100%;
       background: var(--surface);
@@ -102,18 +102,6 @@
     @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
     .sk-banner { height: 96px; }
     .sk-btn { height: 72px; }
-
-    /* TEMP DEBUG: remove once navigateTo behavior is confirmed */
-    .debug-box {
-      font-family: monospace;
-      font-size: 12px;
-      white-space: pre-wrap;
-      word-break: break-word;
-      background: #111827;
-      color: #d1fae5;
-      border-radius: 8px;
-      padding: 10px 12px;
-    }
   </style>
 </head>
 <body>
@@ -139,34 +127,37 @@
           </div>
         </div>
 
-        <!-- Raise Work Request -->
-        <button class="raise-btn" @click="navigateTab">
-          <span class="raise-label">catalog</span>
+        <!-- Service Catalog -->
+        <button class="raise-btn" @click="goToServiceCatalog">
+          <span class="raise-label">Service Catalog</span>
           <span class="raise-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              <line x1="12" y1="7" x2="12" y2="13"/>
-              <line x1="9" y1="10" x2="15" y2="10"/>
+              <rect x="3" y="3" width="7" height="7" rx="1"/>
+              <rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/>
+              <rect x="14" y="14" width="7" height="7" rx="1"/>
             </svg>
           </span>
         </button>
-
-        <!-- TEMP DEBUG: remove once navigateTo behavior is confirmed -->
-        <div v-if="debugMsg" class="debug-box">{{ debugMsg }}</div>
       </template>
     </div>
   </div>
 
   <script>
+    // Service Catalog tab id (from tabs-and-layout summary: webTab whose
+    // configJSON.type === "serviceCatalog", under the "Work Order Request"
+    // tab group, appId 1902). NOTE: this id is org-specific — re-check it
+    // when moving between sandbox and production.
+    var SERVICE_CATALOG_TAB_ID = 53147;
+
     new Vue({
       el: '#app',
       data: {
         loading: true,
         user: {},
         org: {},
-        navigating: false,
-        debugMsg: ''
+        navigating: false
       },
       computed: {
         displayName() {
@@ -206,12 +197,28 @@
         window.facilioApp.on('app.destroyed', function () { /* no-op */ });
       },
       methods: {
-        navigateTab() {
+        goToServiceCatalog() {
+          if (this.navigating) return;
+          this.navigating = true;
           try {
-            window.facilioApp.interface.trigger('navigateTab', { id: 53147, type: "SERVICE_CATALOG"});
-            window.facilioApp.log.info('navigateTab triggered with id 53147');
+            window.facilioApp.log.info(
+              'Mobile home widget: Service Catalog tapped | navigateTab id=' + SERVICE_CATALOG_TAB_ID
+            );
+            window.facilioApp.interface.trigger('navigateTab', {
+              id: SERVICE_CATALOG_TAB_ID,
+              type: 'SERVICE_CATALOG'
+            });
           } catch (error) {
-            window.facilioApp.log.error('navigateTab error: ', error);
+            window.facilioApp.log.error('Mobile home widget: navigation to Service Catalog failed', error);
+            try {
+              window.facilioApp.interface.notify({
+                title: 'Navigation failed',
+                message: 'Could not open the Service Catalog. Please try again.',
+                type: 'error'
+              });
+            } catch (e) { /* notify best-effort */ }
+          } finally {
+            this.navigating = false;
           }
         }
       }
