@@ -245,8 +245,9 @@
     // Module linkName holding the risk-assessment inspections.
     var INSPECTION_MODULE = 'inspectionResponse';
 
-    // Pending task = inspection whose name starts with this…
-    var NAME_PREFIX = 'Risk Assessment';
+    // Pending task = inspection whose name CONTAINS this (names look like
+    // "Contractor Risk Assessment - (WO ID - 33)")…
+    var NAME_MATCH = 'Risk Assessment';
     // …and whose status matches this (compared case/punctuation-insensitively
     // against the state's linkName or display name, so it matches both
     // "storemanagerapprovalrequired" and "Store Manager Approval Required").
@@ -263,7 +264,8 @@
         navigating: false,
         user: {},
         org: {},
-        pendingIds: []
+        pendingIds: [],
+        pendingStateIds: []
       },
       computed: {
         displayName() {
@@ -353,7 +355,7 @@
                 orderBy: 'createdTime',
                 orderType: 'desc',
                 filters: JSON.stringify({
-                  name: { operatorId: 7, value: [NAME_PREFIX] } // starts with
+                  name: { operatorId: 5, value: [NAME_MATCH] } // contains
                 })
               });
               if (response && response.error) throw new Error(JSON.stringify(response.error));
@@ -368,12 +370,20 @@
 
             var self = this;
             var ids = [];
+            var stateIds = [];
             all.forEach(function (rec) {
               if (!self.statusMatches(rec)) return;
               if (rec.id != null && ids.indexOf(rec.id) === -1) ids.push(rec.id);
+              var st = rec.moduleState || rec.status || null;
+              var stId = (st && typeof st === 'object') ? st.id : null;
+              if (stId != null && stateIds.indexOf(stId) === -1) stateIds.push(stId);
             });
             this.pendingIds = ids;
-            window.facilioApp.log.info('Pending tasks: ' + ids.length + ' matching inspection(s): ' + JSON.stringify(ids));
+            this.pendingStateIds = stateIds;
+            window.facilioApp.log.info(
+              'Pending tasks: ' + ids.length + ' matching inspection(s): ' + JSON.stringify(ids) +
+              ' | stateIds=' + JSON.stringify(stateIds)
+            );
           } catch (error) {
             window.facilioApp.log.error('Pending tasks: fetch failed for module ' + INSPECTION_MODULE, error);
             this.pendingIds = [];
@@ -399,15 +409,28 @@
               });
               return;
             }
-            // Open the INSPECTION list filtered to the matching records.
-            // id is a Number/ID field: "=" is operatorId 9; multiple values
-            // one-per-element -> IN(...). Every value must be a string.
-            var filters = {
-              id: {
-                operatorId: 9,
-                value: this.pendingIds.map(function (id) { return String(id); })
-              }
-            };
+            // Open the INSPECTION list filtered by STATUS — the same filter the
+            // list's own filter panel applies (an id filter gets dropped by the
+            // mobile list, but moduleState is a filterable field). The state id
+            // is read at runtime from the matched records, so nothing extra is
+            // hardcoded. Lookup "is" = operatorId 36, ids as strings.
+            var filters;
+            if (this.pendingStateIds.length) {
+              filters = {
+                moduleState: {
+                  operatorId: 36,
+                  value: this.pendingStateIds.map(function (id) { return String(id); })
+                }
+              };
+            } else {
+              // Fallback: filter by record ids (Number "=" = 9, one per element).
+              filters = {
+                id: {
+                  operatorId: 9,
+                  value: this.pendingIds.map(function (id) { return String(id); })
+                }
+              };
+            }
             window.facilioApp.log.info('Pending tasks tapped | openListView ' + INSPECTION_MODULE + ' | filters=' + JSON.stringify(filters));
             window.facilioApp.interface.openListView({
               module: INSPECTION_MODULE,
