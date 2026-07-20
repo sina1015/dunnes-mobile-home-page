@@ -140,8 +140,8 @@
         </div>
 
         <!-- Raise Work Request -->
-        <button class="raise-btn" @click="goToServiceRequest">
-          <span class="raise-label">test</span>
+        <button class="raise-btn" @click="navigateTab">
+          <span class="raise-label">catalog</span>
           <span class="raise-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -206,34 +206,8 @@
         window.facilioApp.on('app.destroyed', function () { /* no-op */ });
       },
       methods: {
-        async goToServiceRequest() {
-          // Prove the click handler itself is firing, before anything else can swallow it
-          this.debugMsg = 'tapped @ ' + new Date().toLocaleTimeString();
-
-          if (this.navigating) {
-            this.debugMsg += '\n(ignored — already navigating)';
-            return;
-          }
-          this.navigating = true;
-          try {
-            window.facilioApp.log.info('Mobile home widget: Raise Work Request tapped');
-
-            // Real in-app path (from the actual URL, minus domain + org segment)
-            var path = '/maintenance/service-request/servicecatalog/requests';
-            window.facilioApp.log.info('Trying navigateTo path: ' + path);
-            this.debugMsg += '\ncalling navigateTo(' + path + ')...';
-
-            var result = await window.facilioApp.interface.navigateTo({ path: path });
-
-            window.facilioApp.log.info('navigateTo result: ' + JSON.stringify(result));
-            this.debugMsg += '\nresult: ' + JSON.stringify(result);
-
-          } catch (error) {
-            window.facilioApp.log.error('navigateTo error: ', error);
-            this.debugMsg += '\nerror: ' + (error && (error.message || JSON.stringify(error)));
-          } finally {
-            this.navigating = false;
-          }
+        navigateTab() {
+          window.facilioApp.interface.trigger('navigateTab', { id: 19005, type: "SERVICE_CATALOG"});
         }
       }
     });
