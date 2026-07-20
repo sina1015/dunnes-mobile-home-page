@@ -207,7 +207,12 @@
       },
       methods: {
         navigateTab() {
-          window.facilioApp.interface.trigger('navigateTab', { id: 19005, type: "SERVICE_CATALOG"});
+          try {
+            window.facilioApp.interface.trigger('navigateTab', { id: 53147, type: "SERVICE_CATALOG"});
+            window.facilioApp.log.info('navigateTab triggered with id 53147');
+          } catch (error) {
+            window.facilioApp.log.error('navigateTab error: ', error);
+          }
         }
       }
     });
