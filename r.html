@@ -229,9 +229,10 @@
     // Pending task = inspection whose name starts with this…
     var NAME_PREFIX = 'Risk Assessment';
     // …and whose status matches this (compared case/punctuation-insensitively
-    // against the state's linkName or display name, so it matches both
-    // "storemanagerapprovalrequired" and "Store Manager Approval Required").
-    var PENDING_STATUS = 'storemanagerapprovalrequired';
+    // against the state's linkName or display name).
+    // DEBUG: temporarily 'assigned' — revert to 'storemanagerapprovalrequired'
+    // once the flow is verified.
+    var PENDING_STATUS = 'assigned';
     // =========================================================
 
     new Vue({
