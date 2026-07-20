@@ -218,17 +218,18 @@
           try {
             window.facilioApp.log.info('Mobile home widget: Raise Work Request tapped');
 
-            var url = 'https://dunnesstores.faciliosandbox.co.uk/dunnesstoressandbox/maintenance/service-request/servicecatalog/requests';
-            window.facilioApp.log.info('Calling openURL: ' + url);
-            this.debugMsg += '\ncalling openURL(' + url + ')...';
+            // Real in-app path (from the actual URL, minus domain + org segment)
+            var path = '/maintenance/service-request/servicecatalog/requests';
+            window.facilioApp.log.info('Trying navigateTo path: ' + path);
+            this.debugMsg += '\ncalling navigateTo(' + path + ')...';
 
-            var result = await window.facilioApp.interface.openURL({ url: url });
+            var result = await window.facilioApp.interface.navigateTo({ path: path });
 
-            window.facilioApp.log.info('openURL result: ' + JSON.stringify(result));
+            window.facilioApp.log.info('navigateTo result: ' + JSON.stringify(result));
             this.debugMsg += '\nresult: ' + JSON.stringify(result);
 
           } catch (error) {
-            window.facilioApp.log.error('openURL error: ', error);
+            window.facilioApp.log.error('navigateTo error: ', error);
             this.debugMsg += '\nerror: ' + (error && (error.message || JSON.stringify(error)));
           } finally {
             this.navigating = false;
