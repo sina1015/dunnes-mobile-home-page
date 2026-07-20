@@ -173,40 +173,9 @@
   </div>
 
   <script>
-    // Service Catalog tab ids per app (sandbox org — verify again for prod).
-    // The widget picks ONE id based on which app it's running in:
-    //   1. Explicit override: wire the widget with a query param on the
-    //      resourcePath, e.g. /app/index.html?fapp=occupant-portal
-    //   2. Referrer sniff: the Occupant Portal is served from the
-    //      *.occupants.* domain, which usually shows up in document.referrer.
-    //   3. Fallback: default to the first entry (maintenance).
-    var SERVICE_CATALOG_TABS = [
-      { app: 'maintenance',     id: 53147, hint: null },
-      { app: 'occupant-portal', id: 53565, hint: 'occupants' }
-    ];
-
-    function pickCatalogTab() {
-      // 1) Query param set at wiring time wins.
-      try {
-        var qs = new URLSearchParams(window.location.search).get('fapp');
-        if (qs) {
-          for (var i = 0; i < SERVICE_CATALOG_TABS.length; i++) {
-            if (SERVICE_CATALOG_TABS[i].app === qs) return SERVICE_CATALOG_TABS[i];
-          }
-        }
-      } catch (e) { /* URLSearchParams best-effort */ }
-      // 2) Referrer sniff (parent portal domain leaks into referrer on load).
-      var ref = (document.referrer || '').toLowerCase();
-      if (ref) {
-        for (var j = 0; j < SERVICE_CATALOG_TABS.length; j++) {
-          if (SERVICE_CATALOG_TABS[j].hint && ref.indexOf(SERVICE_CATALOG_TABS[j].hint) !== -1) {
-            return SERVICE_CATALOG_TABS[j];
-          }
-        }
-      }
-      // 3) Default.
-      return SERVICE_CATALOG_TABS[0];
-    }
+    // MAINTENANCE app build.
+    // Service Catalog tab id — sandbox org, hardcoded. Verify again for prod.
+    var SERVICE_CATALOG_TAB_ID = 53147;
 
     new Vue({
       el: '#app',
@@ -257,18 +226,15 @@
           if (this.navigating) return;
           this.navigating = true;
           try {
-            var tab = pickCatalogTab();
             window.facilioApp.log.info(
-              'Raise Work Order Request tapped | picked app=' + tab.app + ' id=' + tab.id +
-              ' | referrer=' + (document.referrer || 'none') +
-              ' | search=' + (window.location.search || 'none')
+              'Raise Work Order Request tapped | navigateTab id=' + SERVICE_CATALOG_TAB_ID
             );
             var r = window.facilioApp.interface.trigger('navigateTab', {
-              id: tab.id,
+              id: SERVICE_CATALOG_TAB_ID,
               type: 'SERVICE_CATALOG'
             });
             var resolved = (r && typeof r.then === 'function') ? await r : r;
-            window.facilioApp.log.info('navigateTab id=' + tab.id + ' resolved=' + JSON.stringify(resolved));
+            window.facilioApp.log.info('navigateTab id=' + SERVICE_CATALOG_TAB_ID + ' resolved=' + JSON.stringify(resolved));
             if (resolved === false) {
               window.facilioApp.interface.notify({
                 title: 'Navigation failed',
