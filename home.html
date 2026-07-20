@@ -198,40 +198,13 @@
 
             // The service catalog is a TAB whose route is "service-catalogue"
             // (from Setup > Customization > Tabs and Layouts) — navigate by path
-            var pathVariants = [
-              '/service-catalogue',
-              'service-catalogue',
-              '/maintenance/service-catalogue'
-            ];
-            var opened = false;
-            for (var i = 0; i < pathVariants.length && !opened; i++) {
-              try {
-                window.facilioApp.log.info('Trying navigateTo path: ' + pathVariants[i]);
-                await window.facilioApp.interface.navigateTo({ path: pathVariants[i] });
-                opened = true;
-                window.facilioApp.log.info('navigateTo accepted: ' + pathVariants[i]);
-              } catch (e1) {
-                window.facilioApp.log.error('navigateTo rejected: ' + pathVariants[i], e1);
-              }
-            }
-
-            // Fallback: open the web catalog page (navigateTo is rejected on this mobile shell)
-            if (!opened) {
-              window.facilioApp.log.info('Tab paths rejected — opening web catalog');
-              await window.facilioApp.interface.openURL({
-                url: 'https://dunnesstores.faciliosandbox.co.uk/dunnesstoressandbox/maintenance/service-request/servicecatalog/requests'
-              });
-            }
+            var path = '/service-catalogue';
+            window.facilioApp.log.info('Trying navigateTo path: ' + path);
+            var result = await window.facilioApp.interface.navigateTo({ path: path });
+            window.facilioApp.log.info('navigateTo result: ' + JSON.stringify(result));
 
           } catch (error) {
-            window.facilioApp.log.error('Mobile home widget: navigation failed entirely', error);
-            try {
-              window.facilioApp.interface.notify({
-                title: 'Navigation failed',
-                message: 'Could not open the service catalog. Please try again.',
-                type: 'error'
-              });
-            } catch (e) { /* notify best-effort */ }
+            window.facilioApp.log.error('navigateTo error: ', error);
           } finally {
             this.navigating = false;
           }
