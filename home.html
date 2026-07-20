@@ -143,8 +143,29 @@
       display: flex; align-items: center; justify-content: center;
       border: 2px solid var(--surface);
     }
-    .chev { flex-shrink: 0; }
+    .chev { flex-shrink: 0; transition: transform 0.15s ease; }
+    .chev.open { transform: rotate(90deg); }
     .chev svg { width: 22px; height: 22px; stroke: var(--muted); }
+
+    /* In-widget pending list */
+    .task-list {
+      display: flex; flex-direction: column; gap: 8px;
+      margin-top: -6px;
+    }
+    .task-item {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid #ececf1;
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      cursor: pointer; font: inherit; color: var(--text); text-align: left;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .task-item:active { transform: scale(0.99); }
+    .task-name { font-size: 14px; font-weight: 500; line-height: 1.35; }
+    .task-id { font-size: 12px; color: var(--muted); flex-shrink: 0; }
     .subtle { font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 2px; }
 
     /* ---- Loading skeleton (first paint, before app.loaded) ---- */
@@ -224,13 +245,22 @@
             <div class="subtle" v-else-if="pendingCount === 0">No approvals waiting</div>
             <div class="subtle" v-else>{{ pendingCount }} risk assessment{{ pendingCount === 1 ? '' : 's' }} awaiting approval</div>
           </span>
-          <span class="chev">
+          <span class="chev" :class="{ open: showPending }">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="9 18 15 12 9 6"/>
             </svg>
           </span>
         </button>
+
+        <!-- Pending risk assessments (in-widget list) -->
+        <div class="task-list" v-if="showPending && pendingItems.length">
+          <button class="task-item" v-for="item in pendingItems" :key="item.id"
+                  @click="openInspection(item)">
+            <span class="task-name">{{ item.name }}</span>
+            <span class="task-id">#{{ item.id }}</span>
+          </button>
+        </div>
       </template>
     </div>
   </div>
@@ -245,8 +275,14 @@
     // Module linkName holding the risk-assessment inspections.
     var INSPECTION_MODULE = 'inspectionResponse';
 
-    // Pending task = inspection whose name starts with this…
-    var NAME_PREFIX = 'Risk Assessment';
+    // Facilio Function that returns the pending risk assessments
+    // (create it under Setup > Customization > Functions and set the
+    // namespace + name here).
+    var FUNCTION_NAMESPACE = 'inspection';
+    var FUNCTION_NAME = 'fetchPendingRiskAssessments';
+
+    // (Name matching — "contains 'Risk Assessment'" — now lives inside the
+    // Facilio Function, not in the widget.)
     // …and whose status matches this (compared case/punctuation-insensitively
     // against the state's linkName or display name, so it matches both
     // "storemanagerapprovalrequired" and "Store Manager Approval Required").
@@ -261,7 +297,8 @@
         navigating: false,
         user: {},
         org: {},
-        pendingIds: []
+        pendingItems: [],
+        showPending: false
       },
       computed: {
         displayName() {
@@ -280,7 +317,7 @@
           return (ini || 'U').toUpperCase();
         },
         pendingCount() {
-          return this.pendingIds.length;
+          return this.pendingItems.length;
         }
       },
       created() {
@@ -304,77 +341,28 @@
         window.facilioApp.on('app.destroyed', function () { /* no-op */ });
       },
       methods: {
-        // ---------- helpers ----------
-        norm(v) {
-          return String(v == null ? '' : v).toLowerCase().replace(/[^a-z0-9]/g, '');
-        },
-        statusMatches(rec) {
-          var want = this.norm(PENDING_STATUS);
-          var cands = [];
-          var ms = rec.moduleState || rec.status || rec.approvalStatus || null;
-          if (ms && typeof ms === 'object') {
-            cands.push(ms.linkName, ms.status, ms.displayName, ms.name);
-          } else if (ms != null) {
-            cands.push(ms);
-          }
-          if (rec.stateFlowStatus) cands.push(rec.stateFlowStatus);
-          for (var i = 0; i < cands.length; i++) {
-            if (cands[i] != null && this.norm(cands[i]) === want) return true;
-          }
-          return false;
-        },
-        extractWoId(rec) {
-          // Kept for reference (WO id parsed from "Risk Assessment - (WO Id: 24)")
-          var name = rec.name || rec.subject || rec.displayName || '';
-          var m = /WO\s*Id\s*[:\-]?\s*(\d+)/i.exec(name);
-          if (m) return parseInt(m[1], 10);
-          var lk = rec.workOrder || rec.workorder || rec.parent || null;
-          if (lk && lk.id) return lk.id;
-          if (rec.parentId) return rec.parentId;
-          return null;
-        },
         // ---------- pending tasks ----------
         async loadPendingTasks() {
           this.tasksLoading = true;
           try {
-            // Server-side: name starts with "Risk Assessment"
-            // (String "starts with" = operatorId 7). Status is matched
-            // client-side against linkName/display name, since a server-side
-            // state filter would need the state's record id.
-            var pageNo = 1;
-            var all = [];
-            for (; pageNo <= 5; pageNo++) { // up to 1000 records — plenty for open approvals
-              var response = await window.facilioApp.api.fetchAll(INSPECTION_MODULE, {
-                viewName: 'all',
-                page: pageNo,
-                perPage: 200,
-                orderBy: 'createdTime',
-                orderType: 'desc',
-                filters: JSON.stringify({
-                  name: { operatorId: 7, value: [NAME_PREFIX] } // starts with
-                })
-              });
-              if (response && response.error) throw new Error(JSON.stringify(response.error));
-              var list = (response && response.list) || [];
-              all = all.concat(list);
-              if (list.length < 200) break;
-            }
-            window.facilioApp.log.info(
-              'Pending tasks: fetched ' + all.length + ' ' + INSPECTION_MODULE +
-              ' record(s). First: ' + JSON.stringify(all[0] || null).slice(0, 500)
+            var response = await window.facilioApp.request.invokeFacilioFunction(
+              FUNCTION_NAMESPACE, FUNCTION_NAME, PENDING_STATUS
             );
-
-            var self = this;
-            var ids = [];
-            all.forEach(function (rec) {
-              if (!self.statusMatches(rec)) return;
-              if (rec.id != null && ids.indexOf(rec.id) === -1) ids.push(rec.id);
-            });
-            this.pendingIds = ids;
-            window.facilioApp.log.info('Pending tasks: ' + ids.length + ' matching inspection(s): ' + JSON.stringify(ids));
+            var items = response && response.result && response.result.workflow
+              ? response.result.workflow.returnValue
+              : null;
+            if (!Array.isArray(items)) items = [];
+            this.pendingItems = items;
+            window.facilioApp.log.info(
+              'Pending tasks: function returned ' + items.length + ' item(s): ' +
+              JSON.stringify(items).slice(0, 500)
+            );
           } catch (error) {
-            window.facilioApp.log.error('Pending tasks: fetch failed for module ' + INSPECTION_MODULE, error);
-            this.pendingIds = [];
+            window.facilioApp.log.error(
+              'Pending tasks: invokeFacilioFunction failed (' + FUNCTION_NAMESPACE + '.' + FUNCTION_NAME + ')',
+              error
+            );
+            this.pendingItems = [];
           } finally {
             this.tasksLoading = false;
           }
@@ -389,37 +377,28 @@
               });
               return;
             }
-            if (!this.pendingIds.length) {
+            if (!this.pendingItems.length) {
               window.facilioApp.interface.notify({
                 title: 'No pending tasks',
-                message: 'No risk assessments are awaiting store manager approval.',
+                message: 'No risk assessments are awaiting approval.',
                 type: 'info'
               });
               return;
             }
-            // Open the INSPECTION list filtered to the matching records.
-            // id is a Number/ID field: "=" is operatorId 9; multiple values
-            // one-per-element -> IN(...). Every value must be a string.
-            var filters = {
-              id: {
-                operatorId: 9,
-                value: this.pendingIds.map(function (id) { return String(id); })
-              }
-            };
-            window.facilioApp.log.info('Pending tasks tapped | openListView ' + INSPECTION_MODULE + ' | filters=' + JSON.stringify(filters));
-            window.facilioApp.interface.openListView({
+            this.showPending = !this.showPending;
+          } catch (error) {
+            window.facilioApp.log.error('Pending tasks: toggle failed', error);
+          }
+        },
+        openInspection(item) {
+          try {
+            window.facilioApp.log.info('Pending task tapped | openSummary ' + INSPECTION_MODULE + ' #' + item.id);
+            window.facilioApp.interface.openSummary({
               module: INSPECTION_MODULE,
-              filters: JSON.stringify(filters)
+              id: item.id
             });
           } catch (error) {
-            window.facilioApp.log.error('Pending tasks: openListView failed', error);
-            try {
-              window.facilioApp.interface.notify({
-                title: 'Navigation failed',
-                message: 'Could not open pending tasks. Please try again.',
-                type: 'error'
-              });
-            } catch (e) { /* best-effort */ }
+            window.facilioApp.log.error('Pending tasks: openSummary failed for #' + item.id, error);
           }
         },
         // ---------- service catalog ----------
