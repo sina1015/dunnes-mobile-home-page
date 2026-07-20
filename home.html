@@ -65,7 +65,7 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
-    /* ---- Raise Work Order Request card (reference style) ---- */
+    /* ---- Action cards ---- */
     .action-card {
       width: 100%;
       background: var(--surface);
@@ -90,6 +90,7 @@
       background: var(--accent-soft);
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
+      position: relative;
     }
     .action-icon svg { width: 34px; height: 34px; stroke: var(--accent); }
     .action-title {
@@ -115,6 +116,24 @@
     }
     .action-cta svg { width: 18px; height: 18px; stroke: #fff; }
 
+    /* Count badge on the pending tasks icon */
+    .badge {
+      position: absolute;
+      top: -8px; right: -8px;
+      min-width: 24px; height: 24px;
+      padding: 0 6px;
+      border-radius: 12px;
+      background: #1d4ed8;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      border: 2px solid var(--surface);
+    }
+    .chev { flex-shrink: 0; }
+    .chev svg { width: 22px; height: 22px; stroke: var(--muted); }
+    .subtle { font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+
     /* ---- Loading skeleton (first paint, before app.loaded) ---- */
     .sk { border-radius: 12px; background: #e8eaee; position: relative; overflow: hidden; }
     .sk::after {
@@ -133,6 +152,7 @@
       <!-- Skeleton until SDK handshake completes -->
       <template v-if="loading">
         <div class="sk sk-banner"></div>
+        <div class="sk sk-btn"></div>
         <div class="sk sk-btn"></div>
       </template>
 
@@ -168,22 +188,61 @@
             New Request
           </span>
         </button>
+
+        <!-- My Pending Tasks -->
+        <button class="action-card" @click="openPendingTasks">
+          <span class="action-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+              <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+            </svg>
+            <span class="badge" v-if="pendingCount > 0">{{ pendingCount }}</span>
+          </span>
+          <span class="action-title">
+            My Pending Tasks
+            <div class="subtle" v-if="tasksLoading">Checking approvals&hellip;</div>
+            <div class="subtle" v-else-if="pendingCount === 0">No approvals waiting</div>
+            <div class="subtle" v-else>{{ pendingCount }} risk assessment{{ pendingCount === 1 ? '' : 's' }} awaiting approval</div>
+          </span>
+          <span class="chev">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </span>
+        </button>
       </template>
     </div>
   </div>
 
   <script>
-    // MAINTENANCE app build.
-    // Service Catalog tab id — sandbox org, hardcoded. Verify again for prod.
+    // ================= MAINTENANCE APP BUILD =================
+    // Sandbox org ids/values — re-verify when promoting to production.
+
+    // Service Catalog tab id (verified working on-device in sandbox).
     var SERVICE_CATALOG_TAB_ID = 53147;
+
+    // Module linkName holding the risk-assessment inspections.
+    var INSPECTION_MODULE = 'inspectionResponse';
+
+    // Pending task = inspection whose name starts with this…
+    var NAME_PREFIX = 'Risk Assessment';
+    // …and whose status matches this (compared case/punctuation-insensitively
+    // against the state's linkName or display name, so it matches both
+    // "storemanagerapprovalrequired" and "Store Manager Approval Required").
+    var PENDING_STATUS = 'storemanagerapprovalrequired';
+    // =========================================================
 
     new Vue({
       el: '#app',
       data: {
         loading: true,
+        tasksLoading: true,
+        navigating: false,
         user: {},
         org: {},
-        navigating: false
+        pendingWoIds: []
       },
       computed: {
         displayName() {
@@ -200,6 +259,9 @@
           var parts = n.trim().split(/\s+/);
           var ini = parts.slice(0, 2).map(function (p) { return p.charAt(0); }).join('');
           return (ini || 'U').toUpperCase();
+        },
+        pendingCount() {
+          return this.pendingWoIds.length;
         }
       },
       created() {
@@ -209,19 +271,140 @@
             this.user = window.facilioApp.getCurrentUser() || {};
             this.org = window.facilioApp.getCurrentOrg() || {};
             window.facilioApp.log.info(
-              'Mobile home widget loaded | user=' + (this.user.id || 'n/a') +
+              'Home widget loaded | user=' + (this.user.id || 'n/a') +
               ' | org=' + (this.org.id || 'n/a')
             );
           } catch (error) {
-            window.facilioApp.log.error('Mobile home widget: context read failed', error);
+            window.facilioApp.log.error('Home widget: context read failed', error);
           } finally {
             this.loading = false;
+            this.loadPendingTasks(); // async; the card shows its own sub-state
             window.takePrintNow = true;
           }
         });
         window.facilioApp.on('app.destroyed', function () { /* no-op */ });
       },
       methods: {
+        // ---------- helpers ----------
+        norm(v) {
+          return String(v == null ? '' : v).toLowerCase().replace(/[^a-z0-9]/g, '');
+        },
+        statusMatches(rec) {
+          var want = this.norm(PENDING_STATUS);
+          var cands = [];
+          var ms = rec.moduleState || rec.status || rec.approvalStatus || null;
+          if (ms && typeof ms === 'object') {
+            cands.push(ms.linkName, ms.status, ms.displayName, ms.name);
+          } else if (ms != null) {
+            cands.push(ms);
+          }
+          if (rec.stateFlowStatus) cands.push(rec.stateFlowStatus);
+          for (var i = 0; i < cands.length; i++) {
+            if (cands[i] != null && this.norm(cands[i]) === want) return true;
+          }
+          return false;
+        },
+        extractWoId(rec) {
+          // 1) Parse from the name: "Risk Assessment - (WO Id: 24)"
+          var name = rec.name || rec.subject || rec.displayName || '';
+          var m = /WO\s*Id\s*[:\-]?\s*(\d+)/i.exec(name);
+          if (m) return parseInt(m[1], 10);
+          // 2) Fall back to lookup fields linking back to the workorder.
+          var lk = rec.workOrder || rec.workorder || rec.parent || null;
+          if (lk && lk.id) return lk.id;
+          if (rec.parentId) return rec.parentId;
+          return null;
+        },
+        // ---------- pending tasks ----------
+        async loadPendingTasks() {
+          this.tasksLoading = true;
+          try {
+            // Server-side: name starts with "Risk Assessment"
+            // (String "starts with" = operatorId 7). Status is matched
+            // client-side against linkName/display name, since a server-side
+            // state filter would need the state's record id.
+            var pageNo = 1;
+            var all = [];
+            for (; pageNo <= 5; pageNo++) { // up to 1000 records — plenty for open approvals
+              var response = await window.facilioApp.api.fetchAll(INSPECTION_MODULE, {
+                viewName: 'all',
+                page: pageNo,
+                perPage: 200,
+                orderBy: 'createdTime',
+                orderType: 'desc',
+                filters: JSON.stringify({
+                  name: { operatorId: 7, value: [NAME_PREFIX] } // starts with
+                })
+              });
+              if (response && response.error) throw new Error(JSON.stringify(response.error));
+              var list = (response && response.list) || [];
+              all = all.concat(list);
+              if (list.length < 200) break;
+            }
+            window.facilioApp.log.info(
+              'Pending tasks: fetched ' + all.length + ' ' + INSPECTION_MODULE +
+              ' record(s). First: ' + JSON.stringify(all[0] || null).slice(0, 500)
+            );
+
+            var self = this;
+            var ids = [];
+            all.forEach(function (rec) {
+              if (!self.statusMatches(rec)) return;
+              var woId = self.extractWoId(rec);
+              if (woId != null && ids.indexOf(woId) === -1) ids.push(woId);
+            });
+            this.pendingWoIds = ids;
+            window.facilioApp.log.info('Pending tasks: ' + ids.length + ' matching WO(s): ' + JSON.stringify(ids));
+          } catch (error) {
+            window.facilioApp.log.error('Pending tasks: fetch failed for module ' + INSPECTION_MODULE, error);
+            this.pendingWoIds = [];
+          } finally {
+            this.tasksLoading = false;
+          }
+        },
+        openPendingTasks() {
+          try {
+            if (this.tasksLoading) {
+              window.facilioApp.interface.notify({
+                title: 'Just a moment',
+                message: 'Still checking pending approvals\u2026',
+                type: 'info'
+              });
+              return;
+            }
+            if (!this.pendingWoIds.length) {
+              window.facilioApp.interface.notify({
+                title: 'No pending tasks',
+                message: 'No risk assessments are awaiting store manager approval.',
+                type: 'info'
+              });
+              return;
+            }
+            // Workorder id is a Number/ID field: "=" is operatorId 9; multiple
+            // values one-per-element -> IN(...). Every value must be a string.
+            var filters = {
+              id: {
+                operatorId: 9,
+                value: this.pendingWoIds.map(function (id) { return String(id); })
+              }
+            };
+            window.facilioApp.log.info('Pending tasks tapped | openListView workorder | filters=' + JSON.stringify(filters));
+            window.facilioApp.interface.openListView({
+              module: 'workorder',
+              filters: JSON.stringify(filters)
+            });
+          } catch (error) {
+            window.facilioApp.log.error('Pending tasks: openListView failed', error);
+            try {
+              window.facilioApp.interface.notify({
+                title: 'Navigation failed',
+                message: 'Could not open pending tasks. Please try again.',
+                type: 'error'
+              });
+            } catch (e) { /* best-effort */ }
+          }
+        },
+        // ---------- service catalog ----------
         async goToServiceCatalog() {
           if (this.navigating) return;
           this.navigating = true;
@@ -243,14 +426,14 @@
               });
             }
           } catch (error) {
-            window.facilioApp.log.error('Mobile home widget: navigation to Service Catalog failed', error);
+            window.facilioApp.log.error('Navigation to Service Catalog failed', error);
             try {
               window.facilioApp.interface.notify({
                 title: 'Navigation failed',
                 message: 'Could not open the Service Catalog. Please try again.',
                 type: 'error'
               });
-            } catch (e) { /* notify best-effort */ }
+            } catch (e) { /* best-effort */ }
           } finally {
             this.navigating = false;
           }
