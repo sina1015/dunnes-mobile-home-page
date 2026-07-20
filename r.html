@@ -143,29 +143,9 @@
       display: flex; align-items: center; justify-content: center;
       border: 2px solid var(--surface);
     }
-    .chev { flex-shrink: 0; transition: transform 0.15s ease; }
-    .chev.open { transform: rotate(90deg); }
+    .chev { flex-shrink: 0; }
     .chev svg { width: 22px; height: 22px; stroke: var(--muted); }
 
-    /* In-widget pending list */
-    .task-list {
-      display: flex; flex-direction: column; gap: 8px;
-      margin-top: -6px;
-    }
-    .task-item {
-      width: 100%;
-      background: var(--surface);
-      border: 1px solid #ececf1;
-      border-radius: 12px;
-      padding: 14px 16px;
-      display: flex; align-items: center; justify-content: space-between; gap: 10px;
-      cursor: pointer; font: inherit; color: var(--text); text-align: left;
-      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
-      -webkit-tap-highlight-color: transparent;
-    }
-    .task-item:active { transform: scale(0.99); }
-    .task-name { font-size: 14px; font-weight: 500; line-height: 1.35; }
-    .task-id { font-size: 12px; color: var(--muted); flex-shrink: 0; }
     .subtle { font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 2px; }
 
     /* ---- Loading skeleton (first paint, before app.loaded) ---- */
@@ -242,25 +222,16 @@
           <span class="action-title">
             My Pending Tasks
             <div class="subtle" v-if="tasksLoading">Checking approvals&hellip;</div>
-            <div class="subtle" v-else-if="pendingCount === 0">No approvals waiting</div>
+            <div class="subtle" v-else-if="pendingCount === 0">Approvals awaiting review</div>
             <div class="subtle" v-else>{{ pendingCount }} risk assessment{{ pendingCount === 1 ? '' : 's' }} awaiting approval</div>
           </span>
-          <span class="chev" :class="{ open: showPending }">
+          <span class="chev">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="9 18 15 12 9 6"/>
             </svg>
           </span>
         </button>
-
-        <!-- Pending risk assessments (in-widget list) -->
-        <div class="task-list" v-if="showPending && pendingItems.length">
-          <button class="task-item" v-for="item in pendingItems" :key="item.id"
-                  @click="openInspection(item)">
-            <span class="task-name">{{ item.name }}</span>
-            <span class="task-id">#{{ item.id }}</span>
-          </button>
-        </div>
       </template>
     </div>
   </div>
@@ -275,20 +246,22 @@
     // Module linkName holding the risk-assessment inspections.
     var INSPECTION_MODULE = 'inspectionResponse';
 
-    // Facilio Function that returns the pending risk assessments
-    // (create it under Setup > Customization > Functions and set the
-    // namespace + name here).
-    var FUNCTION_NAMESPACE = 'inspection';
-    var FUNCTION_NAME = 'fetchPendingRiskAssessments';
+    // List view + filter for pending approvals — captured verbatim from the
+    // portal's own list request (Network > Payload):
+    //   moduleName: inspectionResponse
+    //   viewName:   allriskassessmentsandworksurveys
+    //   quickFilter: {"moduleState":{"value":["37296"]}}
+    // 37296 = "Store Manager Approval Required" state id (sandbox org —
+    // re-capture for production).
+    var INSPECTION_VIEW = 'allriskassessmentsandworksurveys';
+    var PENDING_FILTER = { moduleState: { value: ['37296'] } };
 
     // (Name matching — "contains 'Risk Assessment'" — now lives inside the
     // Facilio Function, not in the widget.)
     // …and whose status matches this (compared case/punctuation-insensitively
     // against the state's linkName or display name, so it matches both
     // "storemanagerapprovalrequired" and "Store Manager Approval Required").
-    // DEBUG: temporarily 'assigned' — revert to 'storemanagerapprovalrequired'
-    // once the flow is verified.
-    var PENDING_STATUS = 'assigned';
+
     // =========================================================
 
     new Vue({
@@ -299,8 +272,7 @@
         navigating: false,
         user: {},
         org: {},
-        pendingItems: [],
-        showPending: false
+        pendingItems: []
       },
       computed: {
         displayName() {
@@ -345,25 +317,20 @@
       methods: {
         // ---------- pending tasks ----------
         async loadPendingTasks() {
+          // Best-effort badge count only — navigation never depends on this.
           this.tasksLoading = true;
           try {
-            var response = await window.facilioApp.request.invokeFacilioFunction(
-              FUNCTION_NAMESPACE, FUNCTION_NAME, PENDING_STATUS
-            );
-            var items = response && response.result && response.result.workflow
-              ? response.result.workflow.returnValue
-              : null;
-            if (!Array.isArray(items)) items = [];
-            this.pendingItems = items;
-            window.facilioApp.log.info(
-              'Pending tasks: function returned ' + items.length + ' item(s): ' +
-              JSON.stringify(items).slice(0, 500)
-            );
+            var response = await window.facilioApp.api.fetchAll(INSPECTION_MODULE, {
+              viewName: INSPECTION_VIEW,
+              page: 1,
+              perPage: 200,
+              filters: JSON.stringify(PENDING_FILTER)
+            });
+            var list = (response && response.list) || [];
+            this.pendingItems = list;
+            window.facilioApp.log.info('Pending tasks: badge count = ' + list.length);
           } catch (error) {
-            window.facilioApp.log.error(
-              'Pending tasks: invokeFacilioFunction failed (' + FUNCTION_NAMESPACE + '.' + FUNCTION_NAME + ')',
-              error
-            );
+            window.facilioApp.log.error('Pending tasks: badge fetch failed', error);
             this.pendingItems = [];
           } finally {
             this.tasksLoading = false;
@@ -371,36 +338,22 @@
         },
         openPendingTasks() {
           try {
-            if (this.tasksLoading) {
-              window.facilioApp.interface.notify({
-                title: 'Just a moment',
-                message: 'Still checking pending approvals\u2026',
-                type: 'info'
-              });
-              return;
-            }
-            if (!this.pendingItems.length) {
-              window.facilioApp.interface.notify({
-                title: 'No pending tasks',
-                message: 'No risk assessments are awaiting approval.',
-                type: 'info'
-              });
-              return;
-            }
-            this.showPending = !this.showPending;
-          } catch (error) {
-            window.facilioApp.log.error('Pending tasks: toggle failed', error);
-          }
-        },
-        openInspection(item) {
-          try {
-            window.facilioApp.log.info('Pending task tapped | openSummary ' + INSPECTION_MODULE + ' #' + item.id);
-            window.facilioApp.interface.openSummary({
+            var payload = {
               module: INSPECTION_MODULE,
-              id: item.id
-            });
+              view: INSPECTION_VIEW,
+              filters: JSON.stringify(PENDING_FILTER)
+            };
+            window.facilioApp.log.info('Pending tasks tapped | openListView ' + JSON.stringify(payload));
+            window.facilioApp.interface.openListView(payload);
           } catch (error) {
-            window.facilioApp.log.error('Pending tasks: openSummary failed for #' + item.id, error);
+            window.facilioApp.log.error('Pending tasks: openListView failed', error);
+            try {
+              window.facilioApp.interface.notify({
+                title: 'Navigation failed',
+                message: 'Could not open pending tasks. Please try again.',
+                type: 'error'
+              });
+            } catch (e) { /* best-effort */ }
           }
         },
         // ---------- service catalog ----------
