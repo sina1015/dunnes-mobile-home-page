@@ -102,6 +102,18 @@
     @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
     .sk-banner { height: 96px; }
     .sk-btn { height: 72px; }
+
+    /* TEMP DEBUG: remove once navigateTo behavior is confirmed */
+    .debug-box {
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #111827;
+      color: #d1fae5;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
   </style>
 </head>
 <body>
@@ -129,7 +141,7 @@
 
         <!-- Raise Work Request -->
         <button class="raise-btn" @click="goToServiceRequest">
-          <span class="raise-label">Raise Work Request</span>
+          <span class="raise-label">SR</span>
           <span class="raise-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -139,6 +151,9 @@
             </svg>
           </span>
         </button>
+
+        <!-- TEMP DEBUG: remove once navigateTo behavior is confirmed -->
+        <div v-if="debugMsg" class="debug-box">{{ debugMsg }}</div>
       </template>
     </div>
   </div>
@@ -150,7 +165,8 @@
         loading: true,
         user: {},
         org: {},
-        navigating: false
+        navigating: false,
+        debugMsg: ''
       },
       computed: {
         displayName() {
@@ -191,7 +207,13 @@
       },
       methods: {
         async goToServiceRequest() {
-          if (this.navigating) return;
+          // Prove the click handler itself is firing, before anything else can swallow it
+          this.debugMsg = 'tapped @ ' + new Date().toLocaleTimeString();
+
+          if (this.navigating) {
+            this.debugMsg += '\n(ignored — already navigating)';
+            return;
+          }
           this.navigating = true;
           try {
             window.facilioApp.log.info('Mobile home widget: Raise Work Request tapped');
@@ -200,11 +222,16 @@
             // (from Setup > Customization > Tabs and Layouts) — navigate by path
             var path = '/service-catalogue';
             window.facilioApp.log.info('Trying navigateTo path: ' + path);
+            this.debugMsg += '\ncalling navigateTo(' + path + ')...';
+
             var result = await window.facilioApp.interface.navigateTo({ path: path });
+
             window.facilioApp.log.info('navigateTo result: ' + JSON.stringify(result));
+            this.debugMsg += '\nresult: ' + JSON.stringify(result);
 
           } catch (error) {
             window.facilioApp.log.error('navigateTo error: ', error);
+            this.debugMsg += '\nerror: ' + (error && (error.message || JSON.stringify(error)));
           } finally {
             this.navigating = false;
           }
