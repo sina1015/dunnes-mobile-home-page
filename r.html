@@ -160,7 +160,7 @@
       </template>
       <template v-else>
         <div class="brand">
-          <img src="LOGO_PLACEHOLDER" alt="Dunnes Stores" />
+          <img src="PASTE_FULL_BASE64_DATA_URI_HERE" alt="Dunnes Stores" />
         </div>
         <div class="banner">
           <div class="avatar">
@@ -237,15 +237,23 @@
     // 37296 = "Store Manager Approval Required" state id (sandbox org —
     // re-capture for production).
     var INSPECTION_VIEW = 'allriskassessmentsandworksurveys';
-    // The quick filter object (stringified when sent, per the SDK filter-encoding rule).
-    var PENDING_QUICK_FILTER = { moduleState: { value: ['37296'] } };
-    // The remaining query-string params captured alongside it in the Network payload.
+    // 37296 = "Store Manager Approval Required" state id (sandbox org — re-capture for production).
+    var PENDING_STATE_ID = '37296';
+    // SDK filter shape: keyed condition with a numeric operatorId (per the SDK
+    // filter-encoding rule — fetchAll/openListView expect the key `filters`,
+    // stringified). Filtering on the module state's record id, not display name.
+    // operatorId 36 = "is" (equals) for an ID/enum condition.
+    var PENDING_FILTER = {
+      moduleState: {
+        operatorId: 36,
+        value: [PENDING_STATE_ID]
+      }
+    };
+    // The remaining list params captured alongside the filter in the Network payload.
     var PENDING_LIST_PARAMS = {
-      fetchOnlyViewGroupColumn: true,
       page: 1,
       perPage: 50,
-      search: '',
-      withoutCustomButtons: true
+      search: ''
     };
     // =========================================================
     new Vue({
@@ -303,13 +311,11 @@
           this.tasksLoading = true;
           try {
             var response = await window.facilioApp.api.fetchAll(INSPECTION_MODULE, {
-              fetchOnlyViewGroupColumn: PENDING_LIST_PARAMS.fetchOnlyViewGroupColumn,
               viewName: INSPECTION_VIEW,
               page: PENDING_LIST_PARAMS.page,
               perPage: PENDING_LIST_PARAMS.perPage,
               search: PENDING_LIST_PARAMS.search,
-              quickFilter: JSON.stringify(PENDING_QUICK_FILTER),
-              withoutCustomButtons: PENDING_LIST_PARAMS.withoutCustomButtons
+              filters: JSON.stringify(PENDING_FILTER)
             });
             var list = (response && response.list) || [];
             this.pendingItems = list;
@@ -326,12 +332,10 @@
             var payload = {
               module: INSPECTION_MODULE,
               view: INSPECTION_VIEW,
-              fetchOnlyViewGroupColumn: PENDING_LIST_PARAMS.fetchOnlyViewGroupColumn,
               page: PENDING_LIST_PARAMS.page,
               perPage: PENDING_LIST_PARAMS.perPage,
               search: PENDING_LIST_PARAMS.search,
-              quickFilter: JSON.stringify(PENDING_QUICK_FILTER),
-              withoutCustomButtons: PENDING_LIST_PARAMS.withoutCustomButtons
+              filters: JSON.stringify(PENDING_FILTER)
             };
             window.facilioApp.log.info('Pending tasks tapped | openListView ' + JSON.stringify(payload));
             window.facilioApp.interface.openListView(payload);
