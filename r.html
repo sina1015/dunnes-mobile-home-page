@@ -197,13 +197,10 @@
               <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
               <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
             </svg>
-            <span class="badge" v-if="pendingCount > 0">{{ pendingCount }}</span>
           </span>
           <span class="action-title">
             My Pending Tasks
-            <div class="subtle" v-if="tasksLoading">Checking approvals&hellip;</div>
-            <div class="subtle" v-else-if="pendingCount === 0">Approvals awaiting review</div>
-            <div class="subtle" v-else>{{ pendingCount }} risk assessment{{ pendingCount === 1 ? '' : 's' }} awaiting approval</div>
+            <div class="subtle">Risk assessments awaiting approval</div>
           </span>
           <span class="chev">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -222,51 +219,17 @@
     var SERVICE_CATALOG_TAB_ID = 53565;
     // Module linkName holding the risk-assessment inspections.
     var INSPECTION_MODULE = 'inspectionResponse';
-    // List view + filter for pending approvals — captured verbatim from the
-    // portal's own list request (Network > Payload):
-    //
-    //   fetchOnlyViewGroupColumn: true
-    //   moduleName:               inspectionResponse
-    //   viewName:                 allriskassessmentsandworksurveys
-    //   page:                     1
-    //   perPage:                  50
-    //   search:                   (empty)
-    //   quickFilter:              {"moduleState":{"value":["37296"]}}
-    //   withoutCustomButtons:     true
-    //
-    // 37296 = "Store Manager Approval Required" state id (sandbox org —
-    // re-capture for production).
-    // ---- Badge count (fetchAll) ----
-    // This filter is used ONLY for the notification badge count, which works.
-    // The "all" view + this filter returns just the pending-approval records.
-    var INSPECTION_VIEW = 'allriskassessmentsandworksurveys';
-    // 37296 = "Store Manager Approval Required" state id (sandbox org — re-capture for production).
-    var PENDING_STATE_ID = '37296';
-    var PENDING_FILTER = {
-      moduleState: {
-        operatorId: 36,
-        value: [PENDING_STATE_ID]
-      }
-    };
-    var PENDING_LIST_PARAMS = {
-      page: 1,
-      perPage: 50,
-      search: ''
-    };
-    // ---- Opening the list (openListView) ----
-    // No runtime filter here — openListView doesn't honour one reliably.
-    // Instead we open a saved view that already has the pending filter baked in.
+    // View opened when the user taps "My Pending Tasks".
+    // No filter is applied in code — this saved view does its own filtering.
     var PENDING_VIEW = 'approvalpendingriskassessment';
     // =========================================================
     new Vue({
       el: '#app',
       data: {
         loading: true,
-        tasksLoading: true,
         navigating: false,
         user: {},
-        org: {},
-        pendingItems: []
+        org: {}
       },
       computed: {
         displayName() {
@@ -283,9 +246,6 @@
           var parts = n.trim().split(/\s+/);
           var ini = parts.slice(0, 2).map(function (p) { return p.charAt(0); }).join('');
           return (ini || 'U').toUpperCase();
-        },
-        pendingCount() {
-          return this.pendingItems.length;
         }
       },
       created() {
@@ -302,33 +262,12 @@
             window.facilioApp.log.error('Home widget: context read failed', error);
           } finally {
             this.loading = false;
-            this.loadPendingTasks();
             window.takePrintNow = true;
           }
         });
         window.facilioApp.on('app.destroyed', function () { /* no-op */ });
       },
       methods: {
-        async loadPendingTasks() {
-          this.tasksLoading = true;
-          try {
-            var response = await window.facilioApp.api.fetchAll(INSPECTION_MODULE, {
-              viewName: INSPECTION_VIEW,
-              page: PENDING_LIST_PARAMS.page,
-              perPage: PENDING_LIST_PARAMS.perPage,
-              search: PENDING_LIST_PARAMS.search,
-              filters: JSON.stringify(PENDING_FILTER)
-            });
-            var list = (response && response.list) || [];
-            this.pendingItems = list;
-            window.facilioApp.log.info('Pending tasks: badge count = ' + list.length);
-          } catch (error) {
-            window.facilioApp.log.error('Pending tasks: badge fetch failed', error);
-            this.pendingItems = [];
-          } finally {
-            this.tasksLoading = false;
-          }
-        },
         openPendingTasks() {
           try {
             var payload = {
