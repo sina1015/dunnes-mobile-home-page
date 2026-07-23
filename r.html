@@ -236,30 +236,27 @@
     //
     // 37296 = "Store Manager Approval Required" state id (sandbox org —
     // re-capture for production).
-    // View used for the badge count (fetchAll applies PENDING_FILTER on top of it).
+    // ---- Badge count (fetchAll) ----
+    // This filter is used ONLY for the notification badge count, which works.
+    // The "all" view + this filter returns just the pending-approval records.
     var INSPECTION_VIEW = 'allriskassessmentsandworksurveys';
-    // View used when OPENING the list. openListView doesn't honour a runtime
-    // filter reliably, so we point it at a saved view that already has the
-    // "Store Manager Approval Required" filter baked in.
-    var PENDING_VIEW = 'approvalpendingriskassessment';
     // 37296 = "Store Manager Approval Required" state id (sandbox org — re-capture for production).
     var PENDING_STATE_ID = '37296';
-    // SDK filter shape: keyed condition with a numeric operatorId (per the SDK
-    // filter-encoding rule — fetchAll/openListView expect the key `filters`,
-    // stringified). Filtering on the module state's record id, not display name.
-    // operatorId 36 = "is" (equals) for an ID/enum condition.
     var PENDING_FILTER = {
       moduleState: {
         operatorId: 36,
         value: [PENDING_STATE_ID]
       }
     };
-    // The remaining list params captured alongside the filter in the Network payload.
     var PENDING_LIST_PARAMS = {
       page: 1,
       perPage: 50,
       search: ''
     };
+    // ---- Opening the list (openListView) ----
+    // No runtime filter here — openListView doesn't honour one reliably.
+    // Instead we open a saved view that already has the pending filter baked in.
+    var PENDING_VIEW = 'approvalpendingriskassessment';
     // =========================================================
     new Vue({
       el: '#app',
