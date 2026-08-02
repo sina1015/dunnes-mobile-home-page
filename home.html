@@ -245,22 +245,13 @@
             <div class="subtle" v-else-if="pendingCount === 0">No approvals waiting</div>
             <div class="subtle" v-else>{{ pendingCount }} risk assessment{{ pendingCount === 1 ? '' : 's' }} awaiting approval</div>
           </span>
-          <span class="chev" :class="{ open: showPending }">
+          <span class="chev">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="9 18 15 12 9 6"/>
             </svg>
           </span>
         </button>
-
-        <!-- Pending risk assessments (in-widget list) -->
-        <div class="task-list" v-if="showPending && pendingItems.length">
-          <button class="task-item" v-for="item in pendingItems" :key="item.id"
-                  @click="openInspection(item)">
-            <span class="task-name">{{ item.name }}</span>
-            <span class="task-id">#{{ item.id }}</span>
-          </button>
-        </div>
 
         <!-- View Work Orders -->
         <button class="action-card" @click="openWorkOrders">
@@ -311,6 +302,10 @@
     // "storemanagerapprovalrequired" and "Store Manager Approval Required").
     var PENDING_STATUS = 'storemanagerapprovalrequired';
 
+    // View opened when the user taps "My Pending Tasks" (same saved view
+    // used by the occupant-portal build, where this button works).
+    var PENDING_VIEW = 'approvalpendingriskassessment';
+
     // Module linkName for work orders, opened by "View Work Orders".
     var WORKORDER_MODULE = 'workorder';
     // =========================================================
@@ -323,8 +318,7 @@
         navigating: false,
         user: {},
         org: {},
-        pendingItems: [],
-        showPending: false
+        pendingItems: []
       },
       computed: {
         displayName() {
@@ -395,36 +389,21 @@
         },
         openPendingTasks() {
           try {
-            if (this.tasksLoading) {
-              window.facilioApp.interface.notify({
-                title: 'Just a moment',
-                message: 'Still checking pending approvals\u2026',
-                type: 'info'
-              });
-              return;
-            }
-            if (!this.pendingItems.length) {
-              window.facilioApp.interface.notify({
-                title: 'No pending tasks',
-                message: 'No risk assessments are awaiting approval.',
-                type: 'info'
-              });
-              return;
-            }
-            this.showPending = !this.showPending;
-          } catch (error) {
-            window.facilioApp.log.error('Pending tasks: toggle failed', error);
-          }
-        },
-        openInspection(item) {
-          try {
-            window.facilioApp.log.info('Pending task tapped | openSummary ' + INSPECTION_MODULE + ' #' + item.id);
-            window.facilioApp.interface.openSummary({
+            var payload = {
               module: INSPECTION_MODULE,
-              id: item.id
-            });
+              view: PENDING_VIEW
+            };
+            window.facilioApp.log.info('Pending tasks tapped | openListView ' + JSON.stringify(payload));
+            window.facilioApp.interface.openListView(payload);
           } catch (error) {
-            window.facilioApp.log.error('Pending tasks: openSummary failed for #' + item.id, error);
+            window.facilioApp.log.error('Pending tasks: openListView failed', error);
+            try {
+              window.facilioApp.interface.notify({
+                title: 'Navigation failed',
+                message: 'Could not open pending tasks. Please try again.',
+                type: 'error'
+              });
+            } catch (e) { /* best-effort */ }
           }
         },
         // ---------- work orders ----------
