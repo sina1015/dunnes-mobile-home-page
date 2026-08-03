@@ -18,7 +18,41 @@
       --muted: #6b7280;
       --surface: #ffffff;
       --bg: #f6f7f9;
+      --border: #ececf1;
+      --sk-bg: #e8eaee;
       --radius: 0.45rem;
+    }
+    /* Follows the device/browser color-scheme preference automatically. */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --accent-soft: #2a2140;
+        --text: #f3f4f6;
+        --muted: #9ca3af;
+        --surface: #1c2028;
+        --bg: #12151b;
+        --border: #2a2f3a;
+        --sk-bg: #232733;
+      }
+    }
+    /* Explicit override — set by JS when the host app reports its own
+       user-selected theme (independent of OS setting). */
+    html.dark {
+      --accent-soft: #2a2140;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --surface: #1c2028;
+      --bg: #12151b;
+      --border: #2a2f3a;
+      --sk-bg: #232733;
+    }
+    html.light {
+      --accent-soft: #ede9fe;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --surface: #ffffff;
+      --bg: #f6f7f9;
+      --border: #ececf1;
+      --sk-bg: #e8eaee;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -32,7 +66,7 @@
     /* ---- Brand logo ---- */
     .brand {
       background: var(--surface);
-      border: 1px solid #ececf1;
+      border: 1px solid var(--border);
       border-radius: 12px;
       padding: 12px 16px;
       display: flex;
@@ -82,7 +116,7 @@
     .action-card {
       width: 100%;
       background: var(--surface);
-      border: 1px solid #ececf1;
+      border: 1px solid var(--border);
       border-radius: 16px;
       padding: 22px 18px;
       display: flex;
@@ -155,7 +189,7 @@
     .task-item {
       width: 100%;
       background: var(--surface);
-      border: 1px solid #ececf1;
+      border: 1px solid var(--border);
       border-radius: 12px;
       padding: 14px 16px;
       display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -169,7 +203,7 @@
     .subtle { font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 2px; }
 
     /* ---- Loading skeleton (first paint, before app.loaded) ---- */
-    .sk { border-radius: 12px; background: #e8eaee; position: relative; overflow: hidden; }
+    .sk { border-radius: 12px; background: var(--sk-bg); position: relative; overflow: hidden; }
     .sk::after {
       content: ""; position: absolute; inset: 0;
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
@@ -329,6 +363,7 @@
               'Home widget loaded | user=' + (this.user.id || 'n/a') +
               ' | org=' + (this.org.id || 'n/a')
             );
+            this.applyTheme();
           } catch (error) {
             window.facilioApp.log.error('Home widget: context read failed', error);
           } finally {
@@ -339,6 +374,49 @@
         window.facilioApp.on('app.destroyed', function () { /* no-op */ });
       },
       methods: {
+        // ---------- theme sync ----------
+        applyTheme() {
+          try {
+            // The exact field the Facilio SDK uses to expose the host app's
+            // user-selected theme (independent of the OS setting) isn't
+            // confirmed yet, so we probe a few plausible shapes defensively.
+            // This debug line lets us check Connected App Logs to see what
+            // the platform actually sends, so this can be tightened later.
+            var candidates = {
+              orgTheme: this.org && this.org.theme,
+              orgColorScheme: this.org && this.org.colorScheme,
+              orgDarkMode: this.org && this.org.darkMode,
+              userTheme: this.user && this.user.theme,
+              userColorScheme: this.user && this.user.colorScheme,
+              userDarkMode: this.user && this.user.darkMode
+            };
+            window.facilioApp.log.info('Theme candidates: ' + JSON.stringify(candidates));
+
+            var mode = null;
+            if (candidates.orgTheme) mode = candidates.orgTheme;
+            else if (candidates.userTheme) mode = candidates.userTheme;
+            else if (candidates.orgColorScheme) mode = candidates.orgColorScheme;
+            else if (candidates.userColorScheme) mode = candidates.userColorScheme;
+            else if (candidates.orgDarkMode !== undefined) mode = candidates.orgDarkMode ? 'dark' : 'light';
+            else if (candidates.userDarkMode !== undefined) mode = candidates.userDarkMode ? 'dark' : 'light';
+
+            var root = document.documentElement;
+            root.classList.remove('dark', 'light');
+            if (typeof mode === 'string') {
+              mode = mode.toLowerCase();
+              if (mode === 'dark' || mode === 'light') {
+                root.classList.add(mode);
+              }
+              // If mode is e.g. "system"/"auto", leave no class so the
+              // prefers-color-scheme media query decides based on device.
+            }
+            // No explicit signal found at all -> prefers-color-scheme CSS
+            // still applies automatically, so the widget still follows the
+            // device/browser setting even without this JS branch firing.
+          } catch (error) {
+            window.facilioApp.log.error('Theme sync failed', error);
+          }
+        },
         // ---------- pending tasks ----------
         openPendingTasks() {
           try {
