@@ -237,13 +237,10 @@
               <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
               <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
             </svg>
-            <span class="badge" v-if="pendingCount > 0">{{ pendingCount }}</span>
           </span>
           <span class="action-title">
             My Pending Tasks
-            <div class="subtle" v-if="tasksLoading">Checking approvals&hellip;</div>
-            <div class="subtle" v-else-if="pendingCount === 0">No approvals waiting</div>
-            <div class="subtle" v-else>{{ pendingCount }} risk assessment{{ pendingCount === 1 ? '' : 's' }} awaiting approval</div>
+            <div class="subtle">Risk Assessments Awaiting Approval</div>
           </span>
           <span class="chev">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -289,19 +286,6 @@
     // Module linkName holding the risk-assessment inspections.
     var INSPECTION_MODULE = 'inspectionResponse';
 
-    // Facilio Function that returns the pending risk assessments
-    // (create it under Setup > Customization > Functions and set the
-    // namespace + name here).
-    var FUNCTION_NAMESPACE = 'inspection';
-    var FUNCTION_NAME = 'fetchPendingRiskAssessments';
-
-    // (Name matching — "contains 'Risk Assessment'" — now lives inside the
-    // Facilio Function, not in the widget.)
-    // …and whose status matches this (compared case/punctuation-insensitively
-    // against the state's linkName or display name, so it matches both
-    // "storemanagerapprovalrequired" and "Store Manager Approval Required").
-    var PENDING_STATUS = 'storemanagerapprovalrequired';
-
     // View opened when the user taps "My Pending Tasks" (same saved view
     // used by the occupant-portal build, where this button works).
     var PENDING_VIEW = 'approvalpendingriskassessment';
@@ -314,11 +298,9 @@
       el: '#app',
       data: {
         loading: true,
-        tasksLoading: true,
         navigating: false,
         user: {},
-        org: {},
-        pendingItems: []
+        org: {}
       },
       computed: {
         displayName() {
@@ -335,9 +317,6 @@
           var parts = n.trim().split(/\s+/);
           var ini = parts.slice(0, 2).map(function (p) { return p.charAt(0); }).join('');
           return (ini || 'U').toUpperCase();
-        },
-        pendingCount() {
-          return this.pendingItems.length;
         }
       },
       created() {
@@ -354,7 +333,6 @@
             window.facilioApp.log.error('Home widget: context read failed', error);
           } finally {
             this.loading = false;
-            this.loadPendingTasks(); // async; the card shows its own sub-state
             window.takePrintNow = true;
           }
         });
@@ -362,31 +340,6 @@
       },
       methods: {
         // ---------- pending tasks ----------
-        async loadPendingTasks() {
-          this.tasksLoading = true;
-          try {
-            var response = await window.facilioApp.request.invokeFacilioFunction(
-              FUNCTION_NAMESPACE, FUNCTION_NAME, PENDING_STATUS
-            );
-            var items = response && response.result && response.result.workflow
-              ? response.result.workflow.returnValue
-              : null;
-            if (!Array.isArray(items)) items = [];
-            this.pendingItems = items;
-            window.facilioApp.log.info(
-              'Pending tasks: function returned ' + items.length + ' item(s): ' +
-              JSON.stringify(items).slice(0, 500)
-            );
-          } catch (error) {
-            window.facilioApp.log.error(
-              'Pending tasks: invokeFacilioFunction failed (' + FUNCTION_NAMESPACE + '.' + FUNCTION_NAME + ')',
-              error
-            );
-            this.pendingItems = [];
-          } finally {
-            this.tasksLoading = false;
-          }
-        },
         openPendingTasks() {
           try {
             var payload = {
