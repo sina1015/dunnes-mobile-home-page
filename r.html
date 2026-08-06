@@ -205,7 +205,7 @@
             <div class="mail" v-if="email">{{ email }}</div>
           </div>
         </div>
-        <button class="action-card" @click="goToServiceCatalog">
+        <button class="action-card" @click="navigateTab">
           <span class="action-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -268,13 +268,6 @@
   <script>
     // ============ OCCUPANT PORTAL (REQUESTER) APP BUILD ============
     // PRODUCTION values (appId 776).
-    // Service Catalog tab id — confirmed correct for production (tab 19741,
-    // applicationId 776). NOTE: as of Aug 2026, role 1460 ("Store Users")
-    // has no permission entry for this tab in production — that is a
-    // Facilio Setup > Roles & Permissions issue, not something this widget
-    // can fix in code. Add tabId 19741 to role 1460's permissions (Setup)
-    // to restore access; the code below just reports the failure clearly.
-    var SERVICE_CATALOG_TAB_ID = 19741;
     // Module linkName holding the risk-assessment inspections.
     var INSPECTION_MODULE = 'inspectionResponse';
     // View opened when the user taps "My Pending Tasks".
@@ -287,7 +280,6 @@
       el: '#app',
       data: {
         loading: true,
-        navigating: false,
         user: {},
         org: {}
       },
@@ -363,50 +355,8 @@
             } catch (e) { /* best-effort */ }
           }
         },
-        async goToServiceCatalog() {
-          if (this.navigating) return;
-          this.navigating = true;
-          try {
-            window.facilioApp.log.info(
-              'Raise Work Order Request tapped | navigateTab id=' + SERVICE_CATALOG_TAB_ID
-            );
-            var r = window.facilioApp.interface.trigger('navigateTab', {
-              id: SERVICE_CATALOG_TAB_ID,
-              type: 'SERVICE_CATALOG'
-            });
-            var resolved = (r && typeof r.then === 'function') ? await r : r;
-            window.facilioApp.log.info('navigateTab id=' + SERVICE_CATALOG_TAB_ID + ' resolved=' + JSON.stringify(resolved));
-            if (resolved === false) {
-              window.facilioApp.interface.notify({
-                title: 'Navigation failed',
-                message: 'Could not open the Service Catalog. Please try again.',
-                type: 'error'
-              });
-            }
-          } catch (error) {
-            // Permission errors on this tab are almost always a role/tab-permission
-            // gap in Setup (Roles & Permissions), not a bug in this widget — surface
-            // that distinctly so it's not mistaken for a code issue on retry.
-            var isPermissionError = /permission|forbidden|403|access/i.test(
-              (error && (error.message || error.toString())) || ''
-            );
-            window.facilioApp.log.error(
-              (isPermissionError ? 'PERMISSION DENIED' : 'Navigation failed') +
-              ' for Service Catalog (tab ' + SERVICE_CATALOG_TAB_ID + ')',
-              error
-            );
-            try {
-              window.facilioApp.interface.notify({
-                title: isPermissionError ? 'Access restricted' : 'Navigation failed',
-                message: isPermissionError
-                  ? 'Your account doesn\'t have access to the Service Catalog. Contact your Facilio admin to have this enabled.'
-                  : 'Could not open the Service Catalog. Please try again.',
-                type: 'error'
-              });
-            } catch (e) { /* best-effort */ }
-          } finally {
-            this.navigating = false;
-          }
+        navigateTab() {
+          window.facilioApp.interface.trigger('navigateTab', { id: 287417, type: "SERVICE_CATALOG"});
         }
       }
     });
