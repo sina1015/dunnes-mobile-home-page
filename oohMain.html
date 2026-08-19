@@ -5,36 +5,302 @@
   <title>Vendor Out-of-Hours Info</title>
   <script src="https://static.facilio.com/apps-sdk/beta/facilio_apps_sdk.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root { --fac-primary: #3f2e9e; --fac-border: #e3e4ea; --fac-label: #6b7280; --fac-bg: #fafafb; }
+    :root {
+      --ooh-purple: #6d28d9;
+      --ooh-purple-bg: #ede9fe;
+      --ooh-navy: #1e1b2e;
+      --ooh-label: #8b93a7;
+      --ooh-border: #e5e7eb;
+      --ooh-link: #2563eb;
+      --ooh-btn-border: #d1d5db;
+      --ooh-green: #059669;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Roboto', 'Segoe UI', Arial, Helvetica, sans-serif; font-size: 13px; color: #1f2430; background: transparent; }
-    .wrap { padding: 16px; }
-    .skeleton { padding: 16px; }
-    .skeleton .line { height: 12px; background: #eee; border-radius: 4px; margin-bottom: 10px; }
+    body { font-family: 'Inter', 'Segoe UI', Arial, Helvetica, sans-serif; font-size: 14px; color: var(--ooh-navy); background: transparent; }
+    .wrap { padding: 20px; }
+
+    .skeleton { padding: 4px; }
+    .skeleton .line { height: 14px; background: #eee; border-radius: 4px; margin-bottom: 12px; }
     .skeleton .line.w60 { width: 60%; }
     .skeleton .line.w40 { width: 40%; }
 
-    .card { border: 1px solid var(--fac-border); border-radius: 10px; overflow: hidden; }
-    .card-head { padding: 12px 16px; background: var(--fac-bg); border-bottom: 1px solid var(--fac-border); display: flex; align-items: center; justify-content: space-between; }
-    .card-head h2 { font-size: 14px; font-weight: 600; }
-    .card-body { padding: 16px; }
+    .ooh-card { border: 1px solid var(--ooh-border); border-radius: 14px; background: #fff; padding: 28px 32px; }
 
-    .field-block { margin-bottom: 16px; }
-    .field-block:last-child { margin-bottom: 0; }
-    .field-label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--fac-label); margin-bottom: 6px; }
-    .field-value { font-size: 14px; white-space: pre-wrap; word-break: break-word; }
-    .field-value.empty { color: #9aa0ac; font-style: italic; }
+    .ooh-header { display: flex; align-items: center; gap: 14px; }
+    .ooh-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--ooh-purple-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .ooh-icon svg { width: 22px; height: 22px; }
+    .ooh-title { font-family: 'Lora', serif; font-size: 22px; font-weight: 700; color: var(--ooh-navy); line-height: 1.25; }
+    .ooh-subtitle { font-size: 14px; color: var(--ooh-purple); margin-top: 2px; }
 
-    .empty-state, .error-state { padding: 24px 16px; text-align: center; color: var(--fac-label); }
+    .ooh-divider { border-top: 1px solid var(--ooh-border); margin: 22px 0; }
+
+    .ooh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+    @media (max-width: 480px) { .ooh-grid { grid-template-columns: 1fr; gap: 20px; } }
+
+    .ooh-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ooh-label); margin-bottom: 10px; }
+    .ooh-value-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .ooh-value { font-family: 'Lora', serif; font-size: 24px; font-weight: 700; color: var(--ooh-navy); word-break: break-word; }
+    .ooh-value.link { font-family: 'Inter', sans-serif; font-size: 17px; font-weight: 600; color: var(--ooh-link); text-decoration: none; word-break: break-all; }
+    .ooh-value.link:hover { text-decoration: underline; }
+    .ooh-value.empty { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 400; color: #9aa0ac; font-style: italic; }
+
+    .copy-btn {
+      display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
+      border: 1px solid var(--ooh-btn-border); border-radius: 8px; background: #fff;
+      font-size: 13px; font-weight: 500; color: #374151; cursor: pointer; font-family: 'Inter', sans-serif;
+      flex-shrink: 0;
+    }
+    .copy-btn:hover { background: #f9fafb; }
+    .copy-btn.copied { color: var(--ooh-green); border-color: var(--ooh-green); }
+    .copy-btn svg { width: 14px; height: 14px; }
+
+    .ooh-notes-box { border: 1px solid var(--ooh-border); border-radius: 10px; padding: 16px 18px; font-size: 14px; line-height: 1.7; color: #374151; white-space: pre-wrap; word-break: break-word; }
+    .ooh-notes-box.empty { color: #9aa0ac; font-style: italic; }
+
+    .empty-state, .error-state { padding: 32px 16px; text-align: center; color: var(--ooh-label); }
     .error-state { color: #b00020; }
 
-    .debug-box { margin-top: 16px; border: 1px dashed var(--fac-border); border-radius: 8px; padding: 10px 12px; font-family: monospace; font-size: 11px; color: var(--fac-label); white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
-    .debug-toggle { font-size: 11px; color: var(--fac-primary); cursor: pointer; text-decoration: underline; margin-top: 10px; display: inline-block; }
+    .debug-footer { display: flex; justify-content: flex-end; margin-top: 14px; }
+    .debug-toggle { font-size: 12px; color: var(--ooh-link); cursor: pointer; text-decoration: underline; }
+    .debug-box { margin-top: 10px; border: 1px dashed var(--ooh-border); border-radius: 8px; padding: 10px 12px; font-family: monospace; font-size: 11px; color: var(--ooh-label); white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
   </style>
 </head>
 <body>
   <div id="app">
+    <div v-if="loading" class="wrap skeleton">
+      <div class="line w60"></div>
+      <div class="line w40"></div>
+      <div class="line w60"></div>
+    </div>
+
+    <div v-else class="wrap">
+      <div v-if="fatalError" class="error-state">
+        {{ fatalError }}
+      </div>
+
+      <div v-else-if="!vendorId" class="empty-state">
+        No vendor is assigned to this work order.
+      </div>
+
+      <div v-else class="ooh-card">
+        <div class="ooh-header">
+          <div class="ooh-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#6d28d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M12 7v5l3 3"></path>
+            </svg>
+          </div>
+          <div>
+            <div class="ooh-title">Out of hours</div>
+            <div class="ooh-subtitle">{{ vendor ? vendor.name : 'Vendor' }}</div>
+          </div>
+        </div>
+
+        <div class="ooh-divider"></div>
+
+        <div class="ooh-grid">
+          <div>
+            <div class="ooh-label">Contact Number</div>
+            <div class="ooh-value-row">
+              <template v-if="oohContact">
+                <div class="ooh-value">{{ oohContact }}</div>
+                <button type="button" class="copy-btn" :class="{ copied: copiedField === 'contact' }" @click="copyValue(oohContact, 'contact')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="12" height="12" rx="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  {{ copiedField === 'contact' ? 'Copied' : 'Copy' }}
+                </button>
+              </template>
+              <div v-else class="ooh-value empty">Not set</div>
+            </div>
+          </div>
+
+          <div>
+            <div class="ooh-label">Email</div>
+            <div class="ooh-value-row">
+              <template v-if="oohEmail">
+                <a class="ooh-value link" :href="'mailto:' + oohEmail">{{ oohEmail }}</a>
+                <button type="button" class="copy-btn" :class="{ copied: copiedField === 'email' }" @click="copyValue(oohEmail, 'email')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="12" height="12" rx="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  {{ copiedField === 'email' ? 'Copied' : 'Copy' }}
+                </button>
+              </template>
+              <div v-else class="ooh-value empty">Not set</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ooh-divider"></div>
+
+        <div>
+          <div class="ooh-label">Notes</div>
+          <div class="ooh-notes-box" :class="{ empty: !oohNotes }">{{ oohNotes || 'Not set' }}</div>
+        </div>
+
+        <div class="debug-footer">
+          <!-- Diagnostic: only relevant while confirming how this Web Tab
+               receives the current Work Order's id via getContext(). Safe to
+               remove once CONFIG.recordIdKeys below is confirmed against a
+               real load. -->
+          <span class="debug-toggle" @click="showDebug = !showDebug">{{ showDebug ? 'Hide' : 'Show' }} raw context</span>
+        </div>
+        <div v-if="showDebug" class="debug-box">{{ debugText }}</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+     * Dunnes Stores (sandbox) -- Work Order Web Tab.
+     * Shows the assigned Vendor's out-of-hours contact + notes fields.
+     *
+     * MANUAL CHECK -- none of the field/module names below have been verified
+     * against Dunnes Stores' live schema (no MCP connector reaches that org
+     * from this session; only KSD and Trinity Health are reachable). They are
+     * taken directly from what was specified:
+     *   - workOrder.vendor         -- standard CMMS lookup field name,
+     *     consistent with core Facilio's workorder module everywhere else
+     *     seen so far, but not independently confirmed for this org.
+     *   - vendors.ooh_contact_vendors, vendors.ooh_email_vendors,
+     *     vendors.ooh_notes_vendors -- as given.
+     *
+     * The bigger unknown: a Web Tab's getContext() returns a QUERY PARAMS
+     * object (or {}), NOT the record directly (unlike Summary Tab / Custom
+     * Button / Related List, which get the record itself). The exact key
+     * holding the current Work Order's id isn't documented, so this widget
+     * tries several plausible keys (see CONFIG.recordIdKeys) and shows the
+     * raw context in an on-page debug panel if none of them resolve, so the
+     * real key can be read straight off the widget and reported back.
+     * ========================================================================= */
+    var CONFIG = {
+      workOrderModule: 'workorder',
+      vendorModule: 'vendors',
+      vendorLookupField: 'vendor',
+      oohContactField: 'ooh_contact_vendors',
+      oohEmailField: 'ooh_email_vendors',
+      oohNotesField: 'ooh_notes_vendors',
+      // Tried in order against both the top-level context and context.query.
+      recordIdKeys: ['id', 'recordId', 'workorderId', 'workOrderId', 'moduleRecordId']
+    };
+
+    var app = new Vue({
+      el: '#app',
+      data: {
+        loading: true,
+        fatalError: null,
+        vendorId: null,
+        vendor: null,
+        oohContact: '',
+        oohEmail: '',
+        oohNotes: '',
+        rawContext: null,
+        showDebug: false,
+        copiedField: null
+      },
+      computed: {
+        debugText: function () {
+          try { return JSON.stringify(this.rawContext, null, 2); } catch (e) { return String(this.rawContext); }
+        }
+      },
+      created: function () {
+        var self = this;
+        window.facilioApp = FacilioAppSDK.init();
+        window.facilioApp.on('app.loaded', function () { self.init(); });
+      },
+      methods: {
+        copyValue: function (value, fieldKey) {
+          var self = this;
+          var done = function () {
+            self.copiedField = fieldKey;
+            setTimeout(function () { if (self.copiedField === fieldKey) self.copiedField = null; }, 1500);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(value).then(done).catch(function (e) { self.log('error', 'OOH_TAB copy failed', e); });
+          } else {
+            try {
+              var ta = document.createElement('textarea');
+              ta.value = value;
+              document.body.appendChild(ta);
+              ta.select();
+              document.execCommand('copy');
+              document.body.removeChild(ta);
+              done();
+            } catch (e) { self.log('error', 'OOH_TAB fallback copy failed', e); }
+          }
+        },
+
+        log: function (level, msg, err) {
+          try { if (window.facilioApp && window.facilioApp.log && window.facilioApp.log[level]) window.facilioApp.log[level](msg, err); } catch (e) {}
+          if (level === 'error') console.error(msg, err); else console.log(msg);
+        },
+
+        extractRecordId: function (ctx) {
+          if (!ctx) return null;
+          var sources = [ctx, ctx.query || {}];
+          for (var s = 0; s < sources.length; s++) {
+            for (var k = 0; k < CONFIG.recordIdKeys.length; k++) {
+              var v = sources[s][CONFIG.recordIdKeys[k]];
+              if (v != null && v !== '') return v;
+            }
+          }
+          return null;
+        },
+
+        init: async function () {
+          try {
+            var ctx = window.facilioApp.getContext();
+            this.rawContext = ctx;
+            this.log('info', 'OOH_TAB context: ' + JSON.stringify(ctx));
+
+            var workOrderId = this.extractRecordId(ctx);
+            if (workOrderId == null) {
+              this.fatalError = 'Could not determine the current Work Order from context. Expand "Show raw context" below and check which key actually holds the record id, then it can be added to CONFIG.recordIdKeys.';
+              this.log('error', 'OOH_TAB no record id found in context', ctx);
+              this.loading = false;
+              this.showDebug = true;
+              return;
+            }
+
+            var woResp = await window.facilioApp.api.fetchRecord(CONFIG.workOrderModule, { id: workOrderId });
+            var wo = woResp && (woResp[CONFIG.workOrderModule] || woResp.record || woResp);
+            this.log('info', 'OOH_TAB workorder fetched, vendor raw: ' + JSON.stringify(wo && wo[CONFIG.vendorLookupField]));
+
+            var vendorRef = wo && wo[CONFIG.vendorLookupField];
+            var vendorId = vendorRef && (vendorRef.id != null ? vendorRef.id : vendorRef);
+            this.vendorId = vendorId || null;
+
+            if (!this.vendorId) {
+              this.loading = false;
+              return;
+            }
+
+            var vResp = await window.facilioApp.api.fetchRecord(CONFIG.vendorModule, { id: this.vendorId });
+            var vendor = vResp && (vResp[CONFIG.vendorModule] || vResp.record || vResp);
+            this.vendor = vendor || null;
+            this.oohContact = vendor ? (vendor[CONFIG.oohContactField] || '') : '';
+            this.oohEmail = vendor ? (vendor[CONFIG.oohEmailField] || '') : '';
+            this.oohNotes = vendor ? (vendor[CONFIG.oohNotesField] || '') : '';
+            this.log('info', 'OOH_TAB vendor loaded: ' + JSON.stringify({ id: this.vendorId, hasContact: !!this.oohContact, hasEmail: !!this.oohEmail, hasNotes: !!this.oohNotes }));
+          } catch (e) {
+            this.fatalError = 'Something went wrong loading vendor out-of-hours info. Check the debug panel and Connected App logs for details.';
+            this.log('error', 'OOH_TAB init failed: ' + (e && e.message ? e.message : e), e);
+            this.showDebug = true;
+          } finally {
+            this.loading = false;
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>  <div id="app">
     <div v-if="loading" class="skeleton">
       <div class="line w60"></div>
       <div class="line w40"></div>
