@@ -5,8 +5,6 @@
   <title>Vendor Out-of-Hours Info</title>
   <script src="https://static.facilio.com/apps-sdk/beta/facilio_apps_sdk.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --ooh-purple: #6d28d9;
@@ -19,7 +17,7 @@
       --ooh-green: #059669;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', 'Segoe UI', Arial, Helvetica, sans-serif; font-size: 14px; color: var(--ooh-navy); background: transparent; }
+    body { font-family: -apple-system, 'Segoe UI', Roboto, Arial, Helvetica, sans-serif; font-size: 14px; color: var(--ooh-navy); background: transparent; }
     .wrap { padding: 20px; }
 
     .skeleton { padding: 4px; }
@@ -32,7 +30,7 @@
     .ooh-header { display: flex; align-items: center; gap: 14px; }
     .ooh-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--ooh-purple-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .ooh-icon svg { width: 22px; height: 22px; }
-    .ooh-title { font-family: 'Lora', serif; font-size: 22px; font-weight: 700; color: var(--ooh-navy); line-height: 1.25; }
+    .ooh-title { font-family: Georgia, 'Times New Roman', serif; font-size: 22px; font-weight: 700; color: var(--ooh-navy); line-height: 1.25; }
     .ooh-subtitle { font-size: 14px; color: var(--ooh-purple); margin-top: 2px; }
 
     .ooh-divider { border-top: 1px solid var(--ooh-border); margin: 22px 0; }
@@ -42,15 +40,15 @@
 
     .ooh-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ooh-label); margin-bottom: 10px; }
     .ooh-value-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .ooh-value { font-family: 'Lora', serif; font-size: 24px; font-weight: 700; color: var(--ooh-navy); word-break: break-word; }
-    .ooh-value.link { font-family: 'Inter', sans-serif; font-size: 17px; font-weight: 600; color: var(--ooh-link); text-decoration: none; word-break: break-all; }
+    .ooh-value { font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: 700; color: var(--ooh-navy); word-break: break-word; }
+    .ooh-value.link { font-family: -apple-system, 'Segoe UI', Roboto, Arial, Helvetica, sans-serif; font-size: 17px; font-weight: 600; color: var(--ooh-link); text-decoration: none; word-break: break-all; }
     .ooh-value.link:hover { text-decoration: underline; }
-    .ooh-value.empty { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 400; color: #9aa0ac; font-style: italic; }
+    .ooh-value.empty { font-family: -apple-system, 'Segoe UI', Roboto, Arial, Helvetica, sans-serif; font-size: 14px; font-weight: 400; color: #9aa0ac; font-style: italic; }
 
     .copy-btn {
       display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
       border: 1px solid var(--ooh-btn-border); border-radius: 8px; background: #fff;
-      font-size: 13px; font-weight: 500; color: #374151; cursor: pointer; font-family: 'Inter', sans-serif;
+      font-size: 13px; font-weight: 500; color: #374151; cursor: pointer; font-family: -apple-system, 'Segoe UI', Roboto, Arial, Helvetica, sans-serif;
       flex-shrink: 0;
     }
     .copy-btn:hover { background: #f9fafb; }
@@ -288,164 +286,6 @@
             this.oohEmail = vendor ? (vendor[CONFIG.oohEmailField] || '') : '';
             this.oohNotes = vendor ? (vendor[CONFIG.oohNotesField] || '') : '';
             this.log('info', 'OOH_TAB vendor loaded: ' + JSON.stringify({ id: this.vendorId, hasContact: !!this.oohContact, hasEmail: !!this.oohEmail, hasNotes: !!this.oohNotes }));
-          } catch (e) {
-            this.fatalError = 'Something went wrong loading vendor out-of-hours info. Check the debug panel and Connected App logs for details.';
-            this.log('error', 'OOH_TAB init failed: ' + (e && e.message ? e.message : e), e);
-            this.showDebug = true;
-          } finally {
-            this.loading = false;
-          }
-        }
-      }
-    });
-  </script>
-</body>
-</html>  <div id="app">
-    <div v-if="loading" class="skeleton">
-      <div class="line w60"></div>
-      <div class="line w40"></div>
-      <div class="line w60"></div>
-    </div>
-
-    <div v-else class="wrap">
-      <div v-if="fatalError" class="error-state">
-        {{ fatalError }}
-      </div>
-
-      <div v-else-if="!vendorId" class="empty-state">
-        No vendor is assigned to this work order.
-      </div>
-
-      <div v-else class="card">
-        <div class="card-head">
-          <h2>{{ vendor ? vendor.name : 'Vendor' }} — Out of Hours</h2>
-        </div>
-        <div class="card-body">
-          <div class="field-block">
-            <div class="field-label">Out of Hours Contact</div>
-            <div class="field-value" :class="{ empty: !oohContact }">{{ oohContact || 'Not set' }}</div>
-          </div>
-          <div class="field-block">
-            <div class="field-label">Out of Hours Notes</div>
-            <div class="field-value" :class="{ empty: !oohNotes }">{{ oohNotes || 'Not set' }}</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Diagnostic: only relevant while confirming how this Web Tab receives
-           the current Work Order's id via getContext(). Safe to remove once
-           CONFIG.recordIdKeys below is confirmed against a real load. -->
-      <span class="debug-toggle" @click="showDebug = !showDebug">{{ showDebug ? 'Hide' : 'Show' }} raw context (debug)</span>
-      <div v-if="showDebug" class="debug-box">{{ debugText }}</div>
-    </div>
-  </div>
-
-  <script>
-    /* =========================================================================
-     * Dunnes Stores (sandbox) -- Work Order Web Tab.
-     * Shows the assigned Vendor's out-of-hours contact + notes fields.
-     *
-     * MANUAL CHECK -- none of the field/module names below have been verified
-     * against Dunnes Stores' live schema (no MCP connector reaches that org
-     * from this session; only KSD and Trinity Health are reachable). They are
-     * taken directly from what was specified:
-     *   - workOrder.vendor         -- standard CMMS lookup field name,
-     *     consistent with core Facilio's workorder module everywhere else
-     *     seen so far, but not independently confirmed for this org.
-     *   - vendors.ooh_contact_vendors, vendors.ooh_notes_vendors -- as given.
-     *
-     * The bigger unknown: a Web Tab's getContext() returns a QUERY PARAMS
-     * object (or {}), NOT the record directly (unlike Summary Tab / Custom
-     * Button / Related List, which get the record itself). The exact key
-     * holding the current Work Order's id isn't documented, so this widget
-     * tries several plausible keys (see CONFIG.recordIdKeys) and shows the
-     * raw context in an on-page debug panel if none of them resolve, so the
-     * real key can be read straight off the widget and reported back.
-     * ========================================================================= */
-    var CONFIG = {
-      workOrderModule: 'workorder',
-      vendorModule: 'vendors',
-      vendorLookupField: 'vendor',
-      oohContactField: 'ooh_contact_vendors',
-      oohNotesField: 'ooh_notes_vendors',
-      // Tried in order against both the top-level context and context.query.
-      recordIdKeys: ['id', 'recordId', 'workorderId', 'workOrderId', 'moduleRecordId']
-    };
-
-    var app = new Vue({
-      el: '#app',
-      data: {
-        loading: true,
-        fatalError: null,
-        vendorId: null,
-        vendor: null,
-        oohContact: '',
-        oohNotes: '',
-        rawContext: null,
-        showDebug: false
-      },
-      computed: {
-        debugText: function () {
-          try { return JSON.stringify(this.rawContext, null, 2); } catch (e) { return String(this.rawContext); }
-        }
-      },
-      created: function () {
-        var self = this;
-        window.facilioApp = FacilioAppSDK.init();
-        window.facilioApp.on('app.loaded', function () { self.init(); });
-      },
-      methods: {
-        log: function (level, msg, err) {
-          try { if (window.facilioApp && window.facilioApp.log && window.facilioApp.log[level]) window.facilioApp.log[level](msg, err); } catch (e) {}
-          if (level === 'error') console.error(msg, err); else console.log(msg);
-        },
-
-        extractRecordId: function (ctx) {
-          if (!ctx) return null;
-          var sources = [ctx, ctx.query || {}];
-          for (var s = 0; s < sources.length; s++) {
-            for (var k = 0; k < CONFIG.recordIdKeys.length; k++) {
-              var v = sources[s][CONFIG.recordIdKeys[k]];
-              if (v != null && v !== '') return v;
-            }
-          }
-          return null;
-        },
-
-        init: async function () {
-          try {
-            var ctx = window.facilioApp.getContext();
-            this.rawContext = ctx;
-            this.log('info', 'OOH_TAB context: ' + JSON.stringify(ctx));
-
-            var workOrderId = this.extractRecordId(ctx);
-            if (workOrderId == null) {
-              this.fatalError = 'Could not determine the current Work Order from context. Expand "Show raw context" below and check which key actually holds the record id, then it can be added to CONFIG.recordIdKeys.';
-              this.log('error', 'OOH_TAB no record id found in context', ctx);
-              this.loading = false;
-              this.showDebug = true;
-              return;
-            }
-
-            var woResp = await window.facilioApp.api.fetchRecord(CONFIG.workOrderModule, { id: workOrderId });
-            var wo = woResp && (woResp[CONFIG.workOrderModule] || woResp.record || woResp);
-            this.log('info', 'OOH_TAB workorder fetched, vendor raw: ' + JSON.stringify(wo && wo[CONFIG.vendorLookupField]));
-
-            var vendorRef = wo && wo[CONFIG.vendorLookupField];
-            var vendorId = vendorRef && (vendorRef.id != null ? vendorRef.id : vendorRef);
-            this.vendorId = vendorId || null;
-
-            if (!this.vendorId) {
-              this.loading = false;
-              return;
-            }
-
-            var vResp = await window.facilioApp.api.fetchRecord(CONFIG.vendorModule, { id: this.vendorId });
-            var vendor = vResp && (vResp[CONFIG.vendorModule] || vResp.record || vResp);
-            this.vendor = vendor || null;
-            this.oohContact = vendor ? (vendor[CONFIG.oohContactField] || '') : '';
-            this.oohNotes = vendor ? (vendor[CONFIG.oohNotesField] || '') : '';
-            this.log('info', 'OOH_TAB vendor loaded: ' + JSON.stringify({ id: this.vendorId, hasContact: !!this.oohContact, hasNotes: !!this.oohNotes }));
           } catch (e) {
             this.fatalError = 'Something went wrong loading vendor out-of-hours info. Check the debug panel and Connected App logs for details.';
             this.log('error', 'OOH_TAB init failed: ' + (e && e.message ? e.message : e), e);
