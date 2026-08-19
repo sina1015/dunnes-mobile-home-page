@@ -61,10 +61,6 @@
 
     .empty-state, .error-state { padding: 32px 16px; text-align: center; color: var(--muted); }
     .error-state { color: var(--red); }
-
-    .debug-footer { display: flex; justify-content: flex-end; margin-top: 14px; }
-    .debug-toggle { font-size: 12px; color: var(--primary); cursor: pointer; text-decoration: underline; }
-    .debug-box { margin-top: 10px; border: 1px dashed var(--border); border-radius: 8px; padding: 10px 12px; font-family: monospace; font-size: 11px; color: var(--muted); white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; background: var(--panel); }
   </style>
 </head>
 <body>
@@ -128,15 +124,6 @@
             </div>
           </div>
         </div>
-
-        <div class="debug-footer">
-          <!-- Diagnostic: only relevant while confirming how this Web Tab
-               receives the current Work Order's id via getContext(). Safe to
-               remove once CONFIG.recordIdKeys below is confirmed against a
-               real load. -->
-          <span class="debug-toggle" @click="showDebug = !showDebug">{{ showDebug ? 'Hide' : 'Show' }} raw context</span>
-        </div>
-        <div v-if="showDebug" class="debug-box">{{ debugText }}</div>
       </div>
     </div>
   </div>
@@ -198,13 +185,9 @@
         oohContacted: false,
         contactedSaving: false,
         copyState: null,
-        rawContext: null,
-        showDebug: false
+        rawContext: null
       },
       computed: {
-        debugText: function () {
-          try { return JSON.stringify(this.rawContext, null, 2); } catch (e) { return String(this.rawContext); }
-        },
         // MANUAL CHECK -- logged-time field name not verified against
         // Dunnes' live workorder schema; falls back gracefully if absent.
         workOrderLoggedLabel: function () {
@@ -310,10 +293,9 @@
 
             var workOrderId = this.extractRecordId(ctx);
             if (workOrderId == null) {
-              this.fatalError = 'Could not determine the current Work Order from context. Expand "Show raw context" below and check which key actually holds the record id, then it can be added to CONFIG.recordIdKeys.';
+              this.fatalError = 'Could not determine the current Work Order from context.';
               this.log('error', 'OOH_TAB no record id found in context', ctx);
               this.loading = false;
-              this.showDebug = true;
               return;
             }
 
@@ -340,9 +322,8 @@
             this.oohNotes = vendor ? (vendor[CONFIG.oohNotesField] || '') : '';
             this.log('info', 'OOH_TAB vendor loaded: ' + JSON.stringify({ id: this.vendorId, hasContact: !!this.oohContact, hasEmail: !!this.oohEmail, hasNotes: !!this.oohNotes, contacted: this.oohContacted }));
           } catch (e) {
-            this.fatalError = 'Something went wrong loading vendor out-of-hours info. Check the debug panel and Connected App logs for details.';
+            this.fatalError = 'Something went wrong loading vendor out-of-hours info. Check the Connected App logs for details.';
             this.log('error', 'OOH_TAB init failed: ' + (e && e.message ? e.message : e), e);
-            this.showDebug = true;
           } finally {
             this.loading = false;
           }
