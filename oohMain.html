@@ -7,63 +7,63 @@
   <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
   <style>
     :root {
-      --ooh-purple: #6d28d9;
-      --ooh-purple-bg: #ede9fe;
-      --ooh-navy: #1e1b2e;
-      --ooh-label: #8b93a7;
-      --ooh-border: #e5e7eb;
-      --ooh-link: #2563eb;
-      --ooh-btn-border: #d1d5db;
-      --ooh-green: #059669;
+      --bg: #0d0c0e;
+      --panel: #161316;
+      --border: #2a2528;
+      --amber: #e8a04c;
+      --amber-soft: #2b1f10;
+      --amber-border: #4a3419;
+      --white: #f1efee;
+      --muted: #9a949a;
+      --pill-bg: #171417;
+      --pill-border: #332d31;
+      --green: #4ade80;
+      --red: #f87171;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, 'Segoe UI', Roboto, Arial, Helvetica, sans-serif; font-size: 14px; color: var(--ooh-navy); background: transparent; }
+    body {
+      font-family: -apple-system, 'Segoe UI', Roboto, Arial, Helvetica, sans-serif;
+      font-size: 14px; color: var(--white); background: var(--bg);
+    }
     .wrap { padding: 20px; }
 
-    .skeleton { padding: 4px; }
-    .skeleton .line { height: 14px; background: #eee; border-radius: 4px; margin-bottom: 12px; }
+    .skeleton .line { height: 14px; background: var(--panel); border-radius: 4px; margin-bottom: 12px; }
     .skeleton .line.w60 { width: 60%; }
     .skeleton .line.w40 { width: 40%; }
 
-    .ooh-card { border: 1px solid var(--ooh-border); border-radius: 14px; background: #fff; padding: 28px 32px; }
+    .header-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+    .wo-id { color: var(--muted); font-size: 15px; }
+    .wo-subject { font-size: 20px; font-weight: 700; color: var(--white); }
+    .vendor-name { font-size: 17px; font-weight: 700; color: var(--amber); margin-bottom: 18px; }
 
-    .ooh-header { display: flex; align-items: center; gap: 14px; }
-    .ooh-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--ooh-purple-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .ooh-icon svg { width: 22px; height: 22px; }
-    .ooh-title { font-family: Georgia, 'Times New Roman', serif; font-size: 22px; font-weight: 700; color: var(--ooh-navy); line-height: 1.25; }
-    .ooh-subtitle { font-size: 14px; color: var(--ooh-purple); margin-top: 2px; }
+    .ooh-banner { background: var(--amber-soft); border: 1px solid var(--amber-border); border-radius: 14px; padding: 20px 24px; }
+    .ooh-banner-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .ooh-banner-head svg { width: 20px; height: 20px; color: var(--amber); flex-shrink: 0; }
+    .ooh-banner-title { font-size: 13px; font-weight: 600; color: var(--amber); text-transform: uppercase; letter-spacing: 0.04em; }
+    .ooh-banner-body { color: var(--white); font-size: 14.5px; line-height: 1.65; white-space: pre-wrap; word-break: break-word; margin-bottom: 18px; }
+    .ooh-banner-body.empty { color: var(--muted); font-style: italic; }
 
-    .ooh-divider { border-top: 1px solid var(--ooh-border); margin: 22px 0; }
-
-    .ooh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
-    @media (max-width: 480px) { .ooh-grid { grid-template-columns: 1fr; gap: 20px; } }
-
-    .ooh-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ooh-label); margin-bottom: 10px; }
-    .ooh-value-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .ooh-value { font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: 700; color: var(--ooh-navy); word-break: break-word; }
-    .ooh-value.link { font-family: -apple-system, 'Segoe UI', Roboto, Arial, Helvetica, sans-serif; font-size: 17px; font-weight: 600; color: var(--ooh-link); text-decoration: none; word-break: break-all; }
-    .ooh-value.link:hover { text-decoration: underline; }
-    .ooh-value.empty { font-family: -apple-system, 'Segoe UI', Roboto, Arial, Helvetica, sans-serif; font-size: 14px; font-weight: 400; color: #9aa0ac; font-style: italic; }
-
-    .copy-btn {
-      display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
-      border: 1px solid var(--ooh-btn-border); border-radius: 8px; background: #fff;
-      font-size: 13px; font-weight: 500; color: #374151; cursor: pointer; font-family: -apple-system, 'Segoe UI', Roboto, Arial, Helvetica, sans-serif;
-      flex-shrink: 0;
+    .pill-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px;
+      border: 1px solid var(--pill-border); border-radius: 999px; background: var(--pill-bg);
+      font-size: 14px; font-weight: 600; color: var(--white);
     }
-    .copy-btn:hover { background: #f9fafb; }
-    .copy-btn.copied { color: var(--ooh-green); border-color: var(--ooh-green); }
-    .copy-btn svg { width: 14px; height: 14px; }
+    .pill svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .pill.clickable { cursor: pointer; }
+    .pill.clickable:hover { background: #201c20; }
+    .pill.plain { cursor: default; }
+    .pill.copied { color: var(--green); border-color: var(--green); }
+    .pill.copy-failed { color: var(--red); border-color: var(--red); }
+    .pill.contacted-btn { color: var(--muted); }
+    .pill.contacted-btn.done { color: var(--green); border-color: var(--green); background: rgba(74,222,128,0.08); }
 
-    .ooh-notes-box { border: 1px solid var(--ooh-border); border-radius: 10px; padding: 16px 18px; font-size: 14px; line-height: 1.7; color: #374151; white-space: pre-wrap; word-break: break-word; }
-    .ooh-notes-box.empty { color: #9aa0ac; font-style: italic; }
-
-    .empty-state, .error-state { padding: 32px 16px; text-align: center; color: var(--ooh-label); }
-    .error-state { color: #b00020; }
+    .empty-state, .error-state { padding: 32px 16px; text-align: center; color: var(--muted); }
+    .error-state { color: var(--red); }
 
     .debug-footer { display: flex; justify-content: flex-end; margin-top: 14px; }
-    .debug-toggle { font-size: 12px; color: var(--ooh-link); cursor: pointer; text-decoration: underline; }
-    .debug-box { margin-top: 10px; border: 1px dashed var(--ooh-border); border-radius: 8px; padding: 10px 12px; font-family: monospace; font-size: 11px; color: var(--ooh-label); white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
+    .debug-toggle { font-size: 12px; color: var(--amber); cursor: pointer; text-decoration: underline; }
+    .debug-box { margin-top: 10px; border: 1px dashed var(--border); border-radius: 8px; padding: 10px 12px; font-family: monospace; font-size: 11px; color: var(--muted); white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; background: var(--panel); }
   </style>
 </head>
 <body>
@@ -83,63 +83,52 @@
         No vendor is assigned to this work order.
       </div>
 
-      <div v-else class="ooh-card">
-        <div class="ooh-header">
-          <div class="ooh-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#6d28d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="9"></circle>
-              <path d="M12 7v5l3 3"></path>
+      <div v-else>
+        <div class="header-row">
+          <span class="wo-id" v-if="workOrder && workOrder.id">#{{ workOrder.id }}</span>
+          <span class="wo-subject">{{ workOrder && (workOrder.subject || workOrder.name) || 'Work Order' }}</span>
+        </div>
+        <div class="vendor-name">
+          {{ vendor ? vendor.name : 'Vendor' }}
+          <template v-if="workOrderLoggedLabel"> · logged {{ workOrderLoggedLabel }}</template>
+        </div>
+
+        <div class="ooh-banner">
+          <div class="ooh-banner-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
             </svg>
+            <div class="ooh-banner-title">Out of hours</div>
           </div>
-          <div>
-            <div class="ooh-title">Out of hours</div>
-            <div class="ooh-subtitle">{{ vendor ? vendor.name : 'Vendor' }}</div>
-          </div>
-        </div>
 
-        <div class="ooh-divider"></div>
+          <div class="ooh-banner-body" :class="{ empty: !oohNotes }">{{ oohNotes || 'No out-of-hours notes on file for this vendor.' }}</div>
 
-        <div class="ooh-grid">
-          <div>
-            <div class="ooh-label">Contact Number</div>
-            <div class="ooh-value-row">
-              <template v-if="oohContact">
-                <div class="ooh-value">{{ oohContact }}</div>
-                <button type="button" class="copy-btn" :class="{ copied: copiedField === 'contact' }" @click="copyValue(oohContact, 'contact')">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="9" y="9" width="12" height="12" rx="2"></rect>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                  </svg>
-                  {{ copiedField === 'contact' ? 'Copied' : 'Copy' }}
-                </button>
-              </template>
-              <div v-else class="ooh-value empty">Not set</div>
+          <div class="pill-row">
+            <div v-if="oohContact" class="pill clickable" :class="{ copied: copyState === 'copied', 'copy-failed': copyState === 'failed' }" @click="copyValue(oohContact)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path>
+              </svg>
+              <span>{{ copyState === 'copied' ? 'Copied' : (copyState === 'failed' ? 'Copy failed — long-press to copy' : oohContact) }}</span>
+            </div>
+
+            <div v-if="oohEmail" class="pill plain">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+              </svg>
+              <span>{{ oohEmail }}</span>
+            </div>
+
+            <div class="pill contacted-btn clickable" :class="{ done: oohContacted }" @click="toggleContacted">
+              <svg v-if="oohContacted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6 9 17l-5-5"></path>
+              </svg>
+              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"></circle>
+              </svg>
+              <span>{{ contactedSaving ? 'Saving…' : (oohContacted ? 'Contacted' : "I've contacted them") }}</span>
             </div>
           </div>
-
-          <div>
-            <div class="ooh-label">Email</div>
-            <div class="ooh-value-row">
-              <template v-if="oohEmail">
-                <a class="ooh-value link" :href="'mailto:' + oohEmail">{{ oohEmail }}</a>
-                <button type="button" class="copy-btn" :class="{ copied: copiedField === 'email' }" @click="copyValue(oohEmail, 'email')">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="9" y="9" width="12" height="12" rx="2"></rect>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                  </svg>
-                  {{ copiedField === 'email' ? 'Copied' : 'Copy' }}
-                </button>
-              </template>
-              <div v-else class="ooh-value empty">Not set</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="ooh-divider"></div>
-
-        <div>
-          <div class="ooh-label">Notes</div>
-          <div class="ooh-notes-box" :class="{ empty: !oohNotes }">{{ oohNotes || 'Not set' }}</div>
         </div>
 
         <div class="debug-footer">
@@ -157,17 +146,18 @@
   <script>
     /* =========================================================================
      * Dunnes Stores (sandbox) -- Work Order Web Tab.
-     * Shows the assigned Vendor's out-of-hours contact + notes fields.
+     * Shows the assigned Vendor's out-of-hours contact/email/notes, and a
+     * "contacted them" toggle stored back on the Work Order itself.
      *
      * MANUAL CHECK -- none of the field/module names below have been verified
      * against Dunnes Stores' live schema (no MCP connector reaches that org
      * from this session; only KSD and Trinity Health are reachable). They are
      * taken directly from what was specified:
-     *   - workOrder.vendor         -- standard CMMS lookup field name,
-     *     consistent with core Facilio's workorder module everywhere else
-     *     seen so far, but not independently confirmed for this org.
+     *   - workOrder.vendor         -- standard CMMS lookup field name.
      *   - vendors.ooh_contact_vendors, vendors.ooh_email_vendors,
      *     vendors.ooh_notes_vendors -- as given.
+     *   - workorder.ooh___contacted__workorder (BOOLEAN) -- as given, exact
+     *     underscore count preserved verbatim (3 then 2), not normalized.
      *
      * The bigger unknown: a Web Tab's getContext() returns a QUERY PARAMS
      * object (or {}), NOT the record directly (unlike Summary Tab / Custom
@@ -176,6 +166,13 @@
      * tries several plausible keys (see CONFIG.recordIdKeys) and shows the
      * raw context in an on-page debug panel if none of them resolve, so the
      * real key can be read straight off the widget and reported back.
+     *
+     * Intentionally NOT computed: an "open/closed now, opens in X hours"
+     * status. The only OOH data available is free-text notes, not structured
+     * hours -- fabricating a specific wait-time claim from that would risk
+     * showing a confident-looking but potentially wrong number to a
+     * technician. oohNotes is shown verbatim as the banner's main content
+     * instead.
      * ========================================================================= */
     var CONFIG = {
       workOrderModule: 'workorder',
@@ -184,6 +181,7 @@
       oohContactField: 'ooh_contact_vendors',
       oohEmailField: 'ooh_email_vendors',
       oohNotesField: 'ooh_notes_vendors',
+      contactedField: 'ooh___contacted__workorder',
       // Tried in order against both the top-level context and context.query.
       recordIdKeys: ['id', 'recordId', 'workorderId', 'workOrderId', 'moduleRecordId']
     };
@@ -193,18 +191,31 @@
       data: {
         loading: true,
         fatalError: null,
+        workOrder: null,
         vendorId: null,
         vendor: null,
         oohContact: '',
         oohEmail: '',
         oohNotes: '',
+        oohContacted: false,
+        contactedSaving: false,
+        copyState: null,
         rawContext: null,
-        showDebug: false,
-        copiedField: null
+        showDebug: false
       },
       computed: {
         debugText: function () {
           try { return JSON.stringify(this.rawContext, null, 2); } catch (e) { return String(this.rawContext); }
+        },
+        // MANUAL CHECK -- logged-time field name not verified against
+        // Dunnes' live workorder schema; falls back gracefully if absent.
+        workOrderLoggedLabel: function () {
+          var t = this.workOrder && (this.workOrder.sysCreatedTime || this.workOrder.createdTime);
+          if (!t) return '';
+          try {
+            var d = new Date(t);
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          } catch (e) { return ''; }
         }
       },
       created: function () {
@@ -213,30 +224,72 @@
         window.facilioApp.on('app.loaded', function () { self.init(); });
       },
       methods: {
-        copyValue: function (value, fieldKey) {
-          var self = this;
-          var done = function () {
-            self.copiedField = fieldKey;
-            setTimeout(function () { if (self.copiedField === fieldKey) self.copiedField = null; }, 1500);
-          };
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(value).then(done).catch(function (e) { self.log('error', 'OOH_TAB copy failed', e); });
-          } else {
-            try {
-              var ta = document.createElement('textarea');
-              ta.value = value;
-              document.body.appendChild(ta);
-              ta.select();
-              document.execCommand('copy');
-              document.body.removeChild(ta);
-              done();
-            } catch (e) { self.log('error', 'OOH_TAB fallback copy failed', e); }
-          }
-        },
-
         log: function (level, msg, err) {
           try { if (window.facilioApp && window.facilioApp.log && window.facilioApp.log[level]) window.facilioApp.log[level](msg, err); } catch (e) {}
           if (level === 'error') console.error(msg, err); else console.log(msg);
+        },
+
+        // Robust copy: try the modern Clipboard API first (can silently fail
+        // inside an iframe without clipboard-write permission), fall back to
+        // the legacy textarea+execCommand method, and surface a clear
+        // "failed" state rather than pretending it worked either way.
+        copyValue: function (value) {
+          var self = this;
+          var markCopied = function () {
+            self.copyState = 'copied';
+            setTimeout(function () { if (self.copyState === 'copied') self.copyState = null; }, 1500);
+          };
+          var markFailed = function (err) {
+            self.log('error', 'OOH_TAB copy failed', err);
+            self.copyState = 'failed';
+            setTimeout(function () { if (self.copyState === 'failed') self.copyState = null; }, 2500);
+          };
+          var legacyFallback = function () {
+            try {
+              var ta = document.createElement('textarea');
+              ta.value = value;
+              ta.style.position = 'fixed';
+              ta.style.opacity = '0';
+              document.body.appendChild(ta);
+              ta.focus();
+              ta.select();
+              var ok = document.execCommand('copy');
+              document.body.removeChild(ta);
+              if (ok) markCopied(); else markFailed(new Error('execCommand returned false'));
+            } catch (e) { markFailed(e); }
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(value).then(markCopied).catch(function (e) {
+              self.log('error', 'OOH_TAB clipboard API failed, trying fallback', e);
+              legacyFallback();
+            });
+          } else {
+            legacyFallback();
+          }
+        },
+
+        toggleContacted: async function () {
+          if (this.contactedSaving || !this.workOrder || this.workOrder.id == null) return;
+          var next = !this.oohContacted;
+          this.contactedSaving = true;
+          try {
+            var data = {};
+            data[CONFIG.contactedField] = next;
+            var resp = await window.facilioApp.api.updateRecord(CONFIG.workOrderModule, { id: this.workOrder.id, data: data });
+            if (resp && resp.error) throw new Error(this.errText(resp.error));
+            this.oohContacted = next;
+            this.log('info', 'OOH_TAB contacted flag set to ' + next);
+          } catch (e) {
+            this.log('error', 'OOH_TAB toggleContacted failed: ' + (e && e.message ? e.message : e), e);
+          } finally {
+            this.contactedSaving = false;
+          }
+        },
+
+        errText: function (e) {
+          if (e == null) return 'unexpected error';
+          if (typeof e === 'string') return e;
+          try { return JSON.stringify(e); } catch (_) { return String(e); }
         },
 
         extractRecordId: function (ctx) {
@@ -268,6 +321,8 @@
 
             var woResp = await window.facilioApp.api.fetchRecord(CONFIG.workOrderModule, { id: workOrderId });
             var wo = woResp && (woResp[CONFIG.workOrderModule] || woResp.record || woResp);
+            this.workOrder = wo || null;
+            this.oohContacted = !!(wo && wo[CONFIG.contactedField]);
             this.log('info', 'OOH_TAB workorder fetched, vendor raw: ' + JSON.stringify(wo && wo[CONFIG.vendorLookupField]));
 
             var vendorRef = wo && wo[CONFIG.vendorLookupField];
@@ -285,7 +340,7 @@
             this.oohContact = vendor ? (vendor[CONFIG.oohContactField] || '') : '';
             this.oohEmail = vendor ? (vendor[CONFIG.oohEmailField] || '') : '';
             this.oohNotes = vendor ? (vendor[CONFIG.oohNotesField] || '') : '';
-            this.log('info', 'OOH_TAB vendor loaded: ' + JSON.stringify({ id: this.vendorId, hasContact: !!this.oohContact, hasEmail: !!this.oohEmail, hasNotes: !!this.oohNotes }));
+            this.log('info', 'OOH_TAB vendor loaded: ' + JSON.stringify({ id: this.vendorId, hasContact: !!this.oohContact, hasEmail: !!this.oohEmail, hasNotes: !!this.oohNotes, contacted: this.oohContacted }));
           } catch (e) {
             this.fatalError = 'Something went wrong loading vendor out-of-hours info. Check the debug panel and Connected App logs for details.';
             this.log('error', 'OOH_TAB init failed: ' + (e && e.message ? e.message : e), e);
