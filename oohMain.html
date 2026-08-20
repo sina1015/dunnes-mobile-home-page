@@ -7,7 +7,7 @@
   <script src="https://static.facilio.com/apps-sdk/beta/facilio_apps_sdk.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
   <style>
-    :root {
+    :root, body.light {
       --bg: #ffffff;
       --panel: #fafafb;
       --border: #e3e4ea;
@@ -20,6 +20,20 @@
       --pill-border: #d5d7e0;
       --green: #059669;
       --red: #b00020;
+    }
+    body.dark {
+      --bg: #121016;
+      --panel: #1c1a20;
+      --border: #2e2b33;
+      --primary: #a78bfa;
+      --primary-soft: #241f36;
+      --primary-border: #3d3454;
+      --navy: #f1eef7;
+      --muted: #9a94a6;
+      --pill-bg: #1c1a20;
+      --pill-border: #35303c;
+      --green: #4ade80;
+      --red: #f87171;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -58,7 +72,7 @@
     .pill.copied { color: var(--green); border-color: var(--green); }
     .pill.copy-failed { color: var(--red); border-color: var(--red); }
     .pill.contacted-btn { color: var(--muted); }
-    .pill.contacted-btn.done { color: var(--green); border-color: var(--green); background: #ecfdf5; }
+    .pill.contacted-btn.done { color: var(--green); border-color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); }
 
     .empty-state, .error-state { padding: 32px 16px; text-align: center; color: var(--muted); }
     .error-state { color: var(--red); }
@@ -171,6 +185,10 @@
      * showing a confident-looking but potentially wrong number to a
      * technician. oohNotes is shown verbatim as the banner's main content
      * instead.
+     *
+     * Theme: window.facilioApp.getCurrentTheme() drives a 'light'/'dark'
+     * class on <body>; all colors are CSS variables under body.light /
+     * body.dark so both themes stay in sync automatically (see applyTheme()).
      * ========================================================================= */
     var CONFIG = {
       workOrderModule: 'workorder',
@@ -298,7 +316,25 @@
           return null;
         },
 
+        // Reads the host's current theme and mirrors it onto <body> as a
+        // class, so the light/dark CSS variable blocks above take effect.
+        // Called from init() (i.e. after app.loaded), never before -- per
+        // the SDK lifecycle rule against calling APIs pre-load.
+        applyTheme: function () {
+          try {
+            var theme = window.facilioApp.getCurrentTheme();
+            window.facilioApp.log.info('theme now: ' + theme);
+            document.body.classList.remove('light', 'dark');
+            document.body.classList.add(theme === 'dark' ? 'dark' : 'light');
+          } catch (e) {
+            this.log('error', 'OOH_TAB applyTheme failed, defaulting to light', e);
+            document.body.classList.remove('dark');
+            document.body.classList.add('light');
+          }
+        },
+
         init: async function () {
+          this.applyTheme();
           try {
             var ctx = window.facilioApp.getContext();
             this.rawContext = ctx;
