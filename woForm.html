@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Drainage — Log Work Order</title>
+
+<!-- Facilio Connected Apps SDK (beta) -->
+<script src="https://static.facilio.com/apps-sdk/beta/facilio_apps_sdk.min.js"></script>
+<!-- Vue 2 (SDK default, no build step) -->
+<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#ffffff; --fg:#0f0f12; --muted:#6b7280; --muted-bg:#f4f4f6;
+    --border:#e5e5ea; --input:#ffffff; --ring:#7c3aed;
+    --primary:#6d28d9; --primary-fg:#ffffff;
+    --danger:#dc2626; --success:#16a34a; --success-bg:#f0fdf4;
+    --info-bg:#fef2f2; --info-border:#fecaca; --info-fg:#7f1d1d;
+    --warn-bg:#fffbeb; --warn-border:#fde68a; --warn-fg:#78350f;
+    --radius:0.45rem;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#121214; --fg:#f2f2f5; --muted:#9ca3af; --muted-bg:#1c1c20;
+      --border:#2a2a30; --input:#1a1a1e; --ring:#a78bfa;
+      --primary:#8b5cf6; --primary-fg:#ffffff;
+      --danger:#f87171; --success:#4ade80; --success-bg:#0f1e14;
+      --info-bg:#1e1315; --info-border:#4c2426; --info-fg:#fca5a5;
+      --warn-bg:#1f1a0d; --warn-border:#4a3c10; --warn-fg:#fcd34d;
+    }
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Roboto', system-ui, -apple-system, Segoe UI, sans-serif;
+    background:var(--bg); color:var(--fg); font-size:13.5px; line-height:1.45;
+  }
+  #app{ display:flex; flex-direction:column; min-height:100vh; }
+
+  /* ---------- header ---------- */
+  .dw-header{
+    padding:14px 18px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+  }
+  .dw-title{ font-size:15px; font-weight:700; margin:0; }
+  .dw-subtitle{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+  /* ---------- body / sections ---------- */
+  .dw-body{ padding:16px 18px 8px; overflow-y:auto; flex:1; }
+  .dw-section{ margin-bottom:20px; }
+  .dw-section-title{
+    font-size:11.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--muted); margin:0 0 10px;
+  }
+  .dw-row{ display:flex; gap:14px; margin-bottom:14px; flex-wrap:wrap; }
+  .dw-field{ flex:1 1 220px; min-width:0; }
+  .dw-field.full{ margin-bottom:14px; }
+  .dw-label{ display:block; font-size:12.5px; font-weight:500; margin-bottom:5px; }
+  .dw-req{ color:var(--danger); margin-left:2px; }
+
+  input[type=text], input[type=search], textarea, select{
+    width:100%; padding:8px 10px; font-size:13px; font-family:inherit;
+    background:var(--input); color:var(--fg); border:1px solid var(--border);
+    border-radius:var(--radius); outline:none; transition:border-color .15s, box-shadow .15s;
+  }
+  textarea{ resize:vertical; min-height:64px; }
+  input:focus, textarea:focus, select:focus{
+    border-color:var(--ring); box-shadow:0 0 0 3px color-mix(in srgb, var(--ring) 22%, transparent);
+  }
+  input:disabled, select:disabled{ opacity:.7; cursor:not-allowed; background:var(--muted-bg); }
+  .dw-hint{ font-size:11px; color:var(--muted); margin-top:4px; }
+  .dw-error-text{ font-size:11px; color:var(--danger); margin-top:4px; }
+  .dw-field.has-error input, .dw-field.has-error select, .dw-field.has-error textarea{
+    border-color:var(--danger);
+  }
+
+  /* static info banner (replaces the form's "Add Notes" rich-text block, which
+     is a display-only notice on the real form, not a user input) */
+  .dw-info-banner{
+    background:var(--info-bg); border:1px solid var(--info-border); color:var(--info-fg);
+    border-radius:var(--radius); padding:10px 12px; font-size:12.5px; line-height:1.5;
+  }
+  .dw-info-banner strong{ display:block; margin-bottom:2px; }
+
+  /* neutral notice banner (Roof Leaks quirk explanation, asset lock notice, etc.) */
+  .dw-warn-banner{
+    background:var(--warn-bg); border:1px solid var(--warn-border); color:var(--warn-fg);
+    border-radius:var(--radius); padding:9px 11px; font-size:12px; line-height:1.5; margin-top:6px;
+  }
+
+  /* file upload */
+  .dw-file-drop{
+    border:1.5px dashed var(--border); border-radius:var(--radius);
+    padding:14px; text-align:center; cursor:pointer; background:var(--muted-bg);
+  }
+  .dw-file-drop:hover{ border-color:var(--ring); }
+  .dw-file-list{ margin-top:8px; display:flex; flex-direction:column; gap:6px; }
+  .dw-file-chip{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    background:var(--muted-bg); border:1px solid var(--border); border-radius:var(--radius);
+    padding:6px 9px; font-size:12px;
+  }
+  .dw-file-chip button{
+    border:none; background:none; color:var(--muted); cursor:pointer; font-size:14px; line-height:1;
+  }
+  .dw-file-chip button:hover{ color:var(--danger); }
+
+  /* ---------- footer ---------- */
+  .dw-footer{
+    border-top:1px solid var(--border); padding:12px 18px;
+    display:flex; justify-content:flex-end; gap:10px; align-items:center;
+  }
+  .dw-btn{
+    padding:8px 16px; border-radius:var(--radius); font-size:13px; font-weight:500;
+    cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--fg);
+  }
+  .dw-btn:hover{ background:var(--muted-bg); }
+  .dw-btn-primary{ background:var(--primary); color:var(--primary-fg); border-color:var(--primary); }
+  .dw-btn-primary:hover{ filter:brightness(1.06); }
+  .dw-btn-primary:disabled{ opacity:.6; cursor:not-allowed; filter:none; }
+  .dw-submit-error{ font-size:12px; color:var(--danger); margin-right:auto; }
+  .dw-link-btn{
+    border:none; background:none; color:var(--primary); cursor:pointer; font-size:12px;
+    padding:0; text-decoration:underline;
+  }
+
+  /* ---------- loading / skeleton ---------- */
+  .dw-skeleton{ padding:18px; display:flex; flex-direction:column; gap:12px; }
+  .sk-line{ height:12px; border-radius:4px; background:var(--muted-bg); position:relative; overflow:hidden; }
+  .sk-line::after{
+    content:''; position:absolute; inset:0; transform:translateX(-100%);
+    background:linear-gradient(90deg, transparent, rgba(120,120,140,.18), transparent);
+    animation:shimmer 1.2s infinite;
+  }
+  @keyframes shimmer{ 100%{ transform:translateX(100%); } }
+
+  /* ---------- success screen ---------- */
+  .dw-success{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:36px 20px; text-align:center; gap:10px;
+  }
+  .dw-success-icon{
+    width:52px; height:52px; border-radius:50%; background:var(--success-bg);
+    display:flex; align-items:center; justify-content:center; margin-bottom:4px;
+  }
+  .dw-success-icon svg{ width:26px; height:26px; }
+  .dw-success h2{ margin:0; font-size:16px; }
+  .dw-success p{ margin:0; color:var(--muted); font-size:12.5px; }
+  .dw-success-id{
+    margin-top:6px; font-size:13px; font-weight:600; background:var(--muted-bg);
+    padding:4px 10px; border-radius:var(--radius);
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ LOADING SKELETON (shown until app.loaded) ============ -->
+  <div v-if="loading" class="dw-skeleton">
+    <div class="sk-line" style="width:40%"></div>
+    <div class="sk-line" style="width:90%"></div>
+    <div class="sk-line" style="width:70%"></div>
+    <div class="sk-line" style="width:85%"></div>
+    <div class="sk-line" style="width:55%"></div>
+  </div>
+
+  <!-- ============ SUCCESS SCREEN ============ -->
+  <div v-else-if="submitted" class="dw-success">
+    <div class="dw-success-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 6L9 17l-5-5"/>
+      </svg>
+    </div>
+    <h2>Work order created</h2>
+    <p>The Drainage work order has been logged successfully.</p>
+    <div class="dw-success-id" v-if="createdWorkOrder">
+      WO #{{ createdWorkOrder.serialNumber || createdWorkOrder.id }}
+    </div>
+    <div class="dw-footer" style="border-top:none; margin-top:14px;">
+      <button class="dw-btn" @click="createAnother">Log another</button>
+      <button class="dw-btn dw-btn-primary" @click="closeDialog">Done</button>
+    </div>
+  </div>
+
+  <!-- ============ FORM (replica of the "Drainage" Service Request form) ============ -->
+  <template v-else>
+    <div class="dw-header">
+      <div>
+        <p class="dw-title">Drainage</p>
+        <p class="dw-subtitle">Log a Drainage work order</p>
+      </div>
+    </div>
+
+    <div class="dw-body">
+
+      <!-- Section: Default -->
+      <div class="dw-section">
+        <div class="dw-field full">
+          <label class="dw-label">Requested By<span class="dw-req">*</span></label>
+          <input type="text" v-model.trim="form.requestedBy" placeholder="" />
+        </div>
+
+        <div class="dw-field full">
+          <label class="dw-label">Description<span class="dw-req">*</span></label>
+          <textarea v-model.trim="form.description" placeholder="Type your Description"></textarea>
+        </div>
+
+        <div class="dw-row">
+          <div class="dw-field" :class="{ 'has-error': errors.siteId }">
+            <label class="dw-label">Store<span class="dw-req">*</span></label>
+            <select v-model="form.siteId" @change="onStoreChange" :disabled="sitesLoading">
+              <option :value="null">{{ sitesLoading ? 'Loading…' : 'Select' }}</option>
+              <option v-for="s in sites" :key="s.id" :value="s.id">{{ s.name }}</option>
+            </select>
+          </div>
+          <div class="dw-field" :class="{ 'has-error': errors.spaceId }">
+            <label class="dw-label">Space<span class="dw-req">*</span></label>
+            <select v-model="form.spaceId" :disabled="!form.siteId || spacesLoading">
+              <option :value="null">{{ !form.siteId ? 'Select Store first' : (spacesLoading ? 'Loading…' : 'Select') }}</option>
+              <option v-for="s in spaces" :key="s.id" :value="s.id">{{ s.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="dw-row">
+          <div class="dw-field">
+            <label class="dw-label">Asset Category</label>
+            <!-- On the live form this field is DISABLED with a locked preset
+                 value (Drainage, catalog id 20002) — it is never actually
+                 editable, so it's replicated here as a locked, read-only field
+                 rather than a dropdown. -->
+            <input type="text" value="Drainage" disabled />
+          </div>
+          <div class="dw-field" :class="{ 'has-error': errors.subCategoryId }">
+            <label class="dw-label">Sub Category<span class="dw-req">*</span></label>
+            <select v-model="form.subCategoryId" @change="onSubCategoryChange"
+                    :disabled="subCategoriesLoading || subCategoryLocked">
+              <option :value="null">{{ subCategoriesLoading ? 'Loading…' : 'Select' }}</option>
+              <option v-for="sc in subCategories" :key="sc.id" :value="sc.id">{{ sc.name }}</option>
+            </select>
+            <p class="dw-hint" v-if="subCategoryLocked">Locked to the selected asset's own Sub Category.</p>
+          </div>
+        </div>
+
+        <!-- Asset picker — only shown for Sub Category = "Grease Traps" (id 893867).
+             This mirrors the live SR form's "asset-fill" rule chain, INCLUDING the
+             fact that it does NOT show for "Roof Leaks" (893864) even though both
+             are otherwise treated as "asset-driven" sub-categories elsewhere on the
+             form. Confirmed with you this is a real quirk on the live org and you
+             asked to replicate it exactly rather than fix it — see the Roof Leaks
+             notice below. -->
+        <div class="dw-row" v-if="form.subCategoryId === GREASE_TRAPS_ID">
+          <div class="dw-field full">
+            <label class="dw-label">Asset</label>
+            <select v-model="form.assetId" @change="onAssetChange" :disabled="!form.siteId || assetsLoading">
+              <option :value="null">{{ !form.siteId ? 'Select Store first' : (assetsLoading ? 'Loading…' : 'Select (optional)') }}</option>
+              <option v-for="a in assets" :key="a.id" :value="a.id">{{ a.name }}</option>
+            </select>
+            <p class="dw-hint">Optional — picking an Asset auto-fills Sub Category / Asset Type from that asset's own record, same as the live form.</p>
+          </div>
+        </div>
+
+        <!-- Roof Leaks: on the live SR form, this sub-category hides Issue Type
+             (same "HIde issue type" rule as Grease Traps) but — unlike Grease
+             Traps — never reveals the Asset picker either, because the "Show
+             Asset field" rule only checks for Grease Traps. Net effect on the
+             real form: no further issue-detail question at all for this branch.
+             Replicated exactly, per your instruction. -->
+        <div class="dw-row" v-if="form.subCategoryId === ROOF_LEAKS_ID">
+          <div class="dw-field full">
+            <div class="dw-warn-banner">
+              No further issue detail is captured for "Roof Leaks" on the live form (Issue Type is hidden and the Asset picker never appears for this sub-category — this matches the live org's actual behavior, not a bug in this app).
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: conditional Issue Type + one follow-up question, matching
+           the live form's rule chain (hidden whenever Sub Category is Grease
+           Traps or Roof Leaks — the two "asset-driven" sub-categories). -->
+      <div class="dw-section" v-if="showIssueType">
+        <div class="dw-row">
+          <div class="dw-field" :class="{ 'has-error': errors.issueType }">
+            <label class="dw-label">Issue Type<span class="dw-req">*</span></label>
+            <select v-model="form.issueType" @change="onIssueTypeChange">
+              <option :value="null">Select</option>
+              <option v-for="it in issueTypes" :key="it.value" :value="it.value">{{ it.label }}</option>
+            </select>
+          </div>
+          <div class="dw-field" v-if="followUpField" :class="{ 'has-error': errors.followUp }">
+            <label class="dw-label">
+              {{ followUpField.label }}<span class="dw-req" v-if="followUpField.mandatory">*</span>
+            </label>
+            <input type="text" v-model.trim="form.followUpValue" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Additional Information -->
+      <div class="dw-section">
+        <p class="dw-section-title">Additional Information</p>
+
+        <div class="dw-field full" :class="{ 'has-error': errors.hsRisk }">
+          <label class="dw-label">Is the issue causing a Health and Safety risk to any staff or customers<span class="dw-req">*</span></label>
+          <select v-model="form.hsRisk">
+            <option :value="null">Select</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+          <p class="dw-hint">Same question as the SR form. Sets the new "H&amp;S Risk" field on the work order AND drives its Priority (Yes → Urgent, No → Normal).</p>
+        </div>
+
+        <!-- The real "Add Notes" field is a static, non-editable rich-text
+             banner (an out-of-hours notice), not a user input — replicated
+             as an info banner rather than a textarea. -->
+        <div class="dw-info-banner">
+          <strong>Out of Hours Notice</strong>
+          For Urgent issue click submit &amp; call only if immediate attendance is required<br/>
+          <strong>01 426 0701</strong><br/>
+          Non-Urgent will be processed the next day
+        </div>
+      </div>
+
+      <!-- Section: Attachments -->
+      <div class="dw-section">
+        <p class="dw-section-title">Attachments</p>
+        <div class="dw-field" :class="{ 'has-error': errors.attachments }">
+          <label class="dw-label">Attachments<span class="dw-req">*</span></label>
+          <div class="dw-file-drop" @click="$refs.fileInput.click()">
+            Click to attach a photo / document
+            <input ref="fileInput" type="file" multiple style="display:none" @change="onFilesPicked" />
+          </div>
+          <div class="dw-file-list" v-if="pendingFiles.length">
+            <div class="dw-file-chip" v-for="(f, idx) in pendingFiles" :key="idx">
+              <span>{{ f.name }}</span>
+              <button type="button" @click="removeFile(idx)">✕</button>
+            </div>
+          </div>
+          <p class="dw-hint" v-if="pendingFiles.length > 1">
+            Note: this work order's attachment field currently stores a single file — only the first file will be attached.
+          </p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="dw-footer">
+      <span class="dw-submit-error" v-if="submitError">{{ submitError }}</span>
+      <button class="dw-btn" @click="closeDialog" :disabled="saving">Cancel</button>
+      <button class="dw-btn dw-btn-primary" @click="onSave" :disabled="saving">
+        {{ saving ? 'Saving…' : 'Save' }}
+      </button>
+    </div>
+  </template>
+
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Drainage — Work Order Custom Button widget
+//
+// Replicates the "Drainage" Service Request form (module: serviceRequest,
+// form id 61991, incl. its 16 active Form Rules) but built entirely on the
+// WORK ORDER module (module: workorder) — on Save it creates a Work Order
+// directly, then shows a "created" confirmation. Nothing in the Dunnes org
+// has been changed to build this; every field/rule/id below was read via the
+// MCP's read-only actions, including reading two REAL existing records
+// (a service request and a work order, both with `resource` populated) to
+// confirm the exact write shape of the Space/Asset field — see the Q&A below.
+//
+// -----------------------------------------------------------------------
+// Q: the H&S question that drives Urgency on the SR form has no equivalent
+//    field on workorder — how is that handled?
+// A: you added a new field to the workorder module for it:
+//      is_the_issue_causing_a_health_and_safety_risk_to_any_staff_or_customers_workorder
+//    (ENUM, Yes/No). The question is asked exactly as on the SR form, and on
+//    Save its answer is written to BOTH that field AND `priority`:
+//      Yes -> that field = 1 ("Yes"), priority = Urgent (catalog id 1401)
+//      No  -> that field = 2 ("No"),  priority = Normal (catalog id 1403)
+//    !! VERIFY IN SANDBOX !! — this field was created moments before this
+//    file was written and had not yet propagated to the org's read-only
+//    metadata endpoints, so its Yes=1/No=2 option order could NOT be
+//    confirmed live (every other Yes/No field checked in this org — SR's own
+//    H&S question, workorder's "Is Quotation Uploaded" — uses Yes=1/No=2, so
+//    that's the assumed convention here, but confirm the actual ids on the
+//    field's picklist before relying on it). `highRisk` (the existing system
+//    boolean) is deliberately NOT written to, per your choice to use the new
+//    dedicated field instead.
+//
+// Q: the "Asset" picker (Grease Traps sub-category) — how is that handled,
+//    given workorder's own "Space / Asset" field (`resource`) points at an
+//    internal `resource` pseudo-module rather than `asset` directly?
+// A: it turned out NOT to need a new field — you were right that it's the
+//    same kind of field as the SR form's `resource`/WOASSETSPACECHOOSER, just
+//    polymorphic (it can hold a Space OR an Asset). Reading two live records
+//    confirmed the shape: on servicerequest, `resource` expands to the full
+//    Asset record itself; on workorder, it expands to
+//      { id: <same asset id>, name, resourceType: 2, resourceTypeEnum: "ASSET" }
+//    (resourceType 1 = SPACE in the sampled data). So this widget writes
+//      resource: { id: <assetId>, resourceType: 2 }
+//    directly to workorder's own built-in field — no extra custom field
+//    needed. !! VERIFY IN SANDBOX !! this write shape was inferred from what
+//    the API returns when READING an existing record, not from a documented
+//    write schema, since writing to the live org to test it was out of scope
+//    here — confirm a create actually accepts this shape on first sandbox
+//    test.
+//
+// Q: does the Asset picker show for Roof Leaks too?
+// A: no — on the live SR form, the "Show Asset field" rule only checks for
+//    Grease Traps (id 893867), not Roof Leaks (id 893864), even though the
+//    Issue-Type-hiding rule treats both the same. You confirmed you want
+//    this exact behavior replicated (bug included), not "fixed" — so for
+//    Roof Leaks this form shows neither Issue Type nor an Asset picker,
+//    same dead end as the live form. A notice banner explains this to the
+//    user rather than leaving a confusing blank section.
+// -----------------------------------------------------------------------
+//
+// Field mapping used (read from the live Dunnes UK org, read-only):
+//   Drainage SR form field                            -> workorder field
+//   ---------------------------------------------------------------------
+//   Requested By (requested_by_serviceRequest)         -> requested_by_workorder
+//   Description                                        -> description
+//   Store (siteId)                                     -> siteId (plain number)
+//   Space (space_serviceRequest)                        -> space_workorder { id }
+//   Asset Category (category_serviceRequest_1)          -> asset_category_workorder { id: 20002 }
+//     Locked/disabled on the live form (Drainage) — fixed here too, using the
+//     numeric catalog id (20002), confirmed via the `picklist` action.
+//   Sub Category (sub_category_serviceRequest)          -> sub_category_workorder { id }
+//     Filtered to Asset Category = Drainage (fixed, since Asset Category is
+//     itself fixed) rather than to a user-chosen category. Locked/auto-set
+//     when an Asset is picked (Grease Traps flow — see Q&A above).
+//   Asset (resource, WOASSETSPACECHOOSER, Grease Traps only) -> resource { id, resourceType: 2 }
+//   Asset Type (auto-filled from Asset, never user-facing)   -> asset_type_workorder { id }
+//   Issue Type (issue_type_serviceRequest, conditional  -> issue_type_workorder (ENUM, integer)
+//     on Sub Category; hidden for the 2 asset-driven ids)     NOTE: workorder's own enum indices are
+//                                                              used — SR's and workorder's issue_type
+//                                                              enums do NOT share the same integer codes
+//                                                              for every label (Ladies/Gents Public
+//                                                              Toilets are swapped), so values are
+//                                                              matched by LABEL, never reused from SR.
+//   One of 5 conditional follow-ups (per Issue Type — all 5 now have a real
+//   workorder field; the previous version of this file wrongly assumed Vac
+//   Systems had none):
+//     Refrigeration Leaks   -> fridge_number_workorder
+//     *_Toilets (4 values)  -> no__of_toilets_on_site___no__of_affected_workorder
+//     Vac Systems           -> no__of_fridges_affected_workorder (optional — the source
+//                              "issue types , vac" rule is the only one with no
+//                              SET_MANDATORY action, so this field stays optional here too)
+//     Taps / Pumping Station / Other Issue -> location_workorder
+//     General Leaks          -> location___type_of_pipe___plastic_or_copper___workorder
+//   H&S risk question (question1_serviceRequest_1)     -> is_the_issue_causing_a_health_and_safety_risk_to_any_staff_or_customers_workorder
+//                                                           + priority { id } (see Q&A above)
+//   Add Notes (addnotes23)                              -> NOT sent anywhere. Static rich-text
+//                                                            banner on the live form (an out-of-hours
+//                                                            notice), not a user input — rendered here
+//                                                            as a fixed info banner, carries no data.
+//   Attachments (attachedFiles, required)                -> attachements_workorder (FILE, custom)
+//
+//   workorder.subject is required by the API but is NOT part of the visible
+//   Drainage form (the SR equivalent field is hidden with a literal default
+//   "Default") — here it is auto-generated as "Drainage - <Sub Category> -
+//   <Store>" and sent silently. This value is my own choice, not sourced
+//   from config — say if you'd rather it be something else.
+//
+// !! VERIFY IN SANDBOX !! (code only — nothing deployed/tested per your
+// request). Flagged inline with `VERIFY:`:
+//   1. H&S field option ids (assumed Yes=1/No=2 — field not yet indexed to confirm live).
+//   2. `resource` write shape { id, resourceType: 2 } (inferred from reads, not a write test).
+//   3. File-field payload key convention: attachements_workorderId (fieldName + "Id").
+//   4. custom_subcategory / asset record identifiers: assumed `record.id` as returned by fetchAll.
+//   5. window.facilioApp.trigger('customButton', …) call to close the dialog — the SDK
+//      reference lists "hide" as an available trigger action but not its exact call
+//      signature; re-check against the live SDK docs and adjust closeDialog() if needed.
+// ---------------------------------------------------------------------------
+
+var DRAINAGE_CATEGORY_ID = 20002; // assetcategory catalog id for "Drainage"
+var GREASE_TRAPS_ID = 893867;     // custom_subcategory id — Asset picker shows for this one only
+var ROOF_LEAKS_ID = 893864;       // custom_subcategory id — Issue Type hidden, NO Asset picker (live quirk)
+var ASSET_DRIVEN_SUBCATEGORY_IDS = [GREASE_TRAPS_ID, ROOF_LEAKS_ID];
+var RESOURCE_TYPE_ASSET = 2; // confirmed by reading a live workorder record's `resource.resourceType`
+
+// H&S -> priority catalog ids, confirmed via the live workorder.priority picklist.
+var PRIORITY_BY_HS_ANSWER = {
+  Yes: { id: 1401 }, // "Urgent"
+  No: { id: 1403 }   // "Normal"
+};
+// H&S -> new custom field value. VERIFY: assumed Yes=1/No=2 (see header Q&A) —
+// the field was created moments before this file was written and hadn't yet
+// propagated to the org's read-only metadata endpoints to confirm live.
+var HS_FIELD_LINK_NAME = 'is_the_issue_causing_a_health_and_safety_risk_to_any_staff_or_customers_workorder';
+var HS_VALUE_BY_ANSWER = { Yes: 1, No: 2 };
+
+// workorder.issue_type_workorder's own enum options (NOT reused from SR —
+// see header comment on why the codes differ between modules).
+var ISSUE_TYPES = [
+  { value: 2, label: 'Refrigeration Leaks' },
+  { value: 3, label: 'Pumping Station' },
+  { value: 4, label: 'Ladies Staff Toilets' },
+  { value: 10, label: 'Gents Staff Toilets' },
+  { value: 11, label: 'Ladies Public Toilets' },
+  { value: 5, label: 'Gents Public Toilets' },
+  { value: 6, label: 'Vac Systems' },
+  { value: 8, label: 'General Leaks' },
+  { value: 9, label: 'Taps' },
+  { value: 7, label: 'Other Issue' }
+];
+
+var TOILET_ISSUE_VALUES = [4, 10, 11, 5];
+var LOCATION_ISSUE_VALUES = [9, 3, 7]; // Taps, Pumping Station, Other Issue
+
+function followUpFieldFor(issueTypeValue) {
+  if (issueTypeValue === 2) {
+    return { key: 'fridge_number_workorder', label: 'Fridge Number', mandatory: true };
+  }
+  if (TOILET_ISSUE_VALUES.indexOf(issueTypeValue) !== -1) {
+    return { key: 'no__of_toilets_on_site___no__of_affected_workorder', label: 'No. of Toilets on site & No. of Affected', mandatory: true };
+  }
+  if (issueTypeValue === 6) {
+    // Only follow-up branch with no SET_MANDATORY action on the source form.
+    return { key: 'no__of_fridges_affected_workorder', label: 'No. of Fridges Affected', mandatory: false };
+  }
+  if (LOCATION_ISSUE_VALUES.indexOf(issueTypeValue) !== -1) {
+    return { key: 'location_workorder', label: 'Location', mandatory: true };
+  }
+  if (issueTypeValue === 8) {
+    return { key: 'location___type_of_pipe___plastic_or_copper___workorder', label: 'Location - type of pipe ( plastic or copper )', mandatory: true };
+  }
+  return null; // e.g. "Plumbing" — a workorder-only option with no SR-side rule
+}
+
+function emptyForm() {
+  return {
+    requestedBy: '',
+    description: '',
+    siteId: null,
+    spaceId: null,
+    subCategoryId: null,
+    assetId: null,
+    assetTypeId: null, // auto-filled, never shown directly
+    issueType: null,
+    followUpValue: '',
+    hsRisk: null
+  };
+}
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    loading: true,
+    saving: false,
+    submitted: false,
+    submitError: '',
+    createdWorkOrder: null,
+
+    user: {},
+    org: {},
+    context: {},
+    widget: {},
+
+    form: emptyForm(),
+    errors: {},
+
+    sites: [],
+    sitesLoading: false,
+
+    spaces: [],
+    spacesLoading: false,
+
+    subCategories: [],
+    subCategoriesLoading: false,
+
+    assets: [],
+    assetsLoading: false,
+
+    issueTypes: ISSUE_TYPES,
+    GREASE_TRAPS_ID: GREASE_TRAPS_ID,
+    ROOF_LEAKS_ID: ROOF_LEAKS_ID,
+
+    pendingFiles: []
+  },
+
+  computed: {
+    showIssueType: function () {
+      if (!this.form.subCategoryId) return false;
+      return ASSET_DRIVEN_SUBCATEGORY_IDS.indexOf(this.form.subCategoryId) === -1;
+    },
+    followUpField: function () {
+      if (this.form.issueType == null) return null;
+      return followUpFieldFor(this.form.issueType);
+    },
+    subCategoryLocked: function () {
+      // Matches the source "asset-fill" rule: Sub Category is DISABLE_FIELD'd
+      // while an Asset is selected.
+      return this.form.subCategoryId === GREASE_TRAPS_ID && !!this.form.assetId;
+    }
+  },
+
+  created() {
+    window.facilioApp = FacilioAppSDK.init();
+
+    window.facilioApp.on('app.loaded', async (data) => {
+      // data = { widget, context, exportMode, currentUser, currentOrg }
+      this.user = window.facilioApp.getCurrentUser();
+      this.org = window.facilioApp.getCurrentOrg();
+      this.context = window.facilioApp.getContext();
+      this.widget = window.facilioApp.getWidget();
+
+      window.facilioApp.log.info(
+        'Drainage work order widget loaded. widgetId=' + (this.widget && this.widget.id) +
+        ' context keys=' + JSON.stringify(Object.keys(this.context || {}))
+      );
+
+      this.loading = false;
+      await this.init();
+    });
+
+    window.facilioApp.on('app.destroyed', () => {});
+  },
+
+  methods: {
+    async init() {
+      await Promise.all([this.loadSites(), this.loadSubCategories()]);
+
+      // Custom Button context is the record the button was launched from
+      // (e.g. a Site / Work Order). If it carries a siteId, pre-fill Store.
+      var ctx = this.context || {};
+      var ctxSiteId = ctx.siteId || (ctx.site && ctx.site.id) || null;
+      if (ctxSiteId) {
+        this.form.siteId = ctxSiteId;
+        await this.onStoreChange();
+      }
+    },
+
+    async loadSites() {
+      this.sitesLoading = true;
+      try {
+        const res = await window.facilioApp.api.fetchAll('site', {
+          perPage: 200,
+          orderBy: 'name',
+          orderType: 'asc'
+        });
+        this.sites = (res && res.list) || [];
+        window.facilioApp.log.info('Loaded ' + this.sites.length + ' sites (Store options).');
+      } catch (err) {
+        window.facilioApp.log.error('Failed to load sites for Store dropdown', err);
+        this.sites = [];
+      } finally {
+        this.sitesLoading = false;
+      }
+    },
+
+    async onStoreChange() {
+      this.form.spaceId = null;
+      this.spaces = [];
+      // Asset list is site-scoped — reset/reload if the Asset picker is active.
+      this.form.assetId = null;
+      this.assets = [];
+
+      if (!this.form.siteId) return;
+
+      this.spacesLoading = true;
+      try {
+        const filters = JSON.stringify({
+          site: { operatorId: 36, value: [String(this.form.siteId)] }
+        });
+        const res = await window.facilioApp.api.fetchAll('space', {
+          filters: filters,
+          perPage: 200,
+          orderBy: 'name',
+          orderType: 'asc'
+        });
+        this.spaces = (res && res.list) || [];
+        window.facilioApp.log.info(
+          'Loaded ' + this.spaces.length + ' spaces for siteId=' + this.form.siteId
+        );
+      } catch (err) {
+        window.facilioApp.log.error('Failed to load spaces for siteId=' + this.form.siteId, err);
+        this.spaces = [];
+      } finally {
+        this.spacesLoading = false;
+      }
+
+      if (this.form.subCategoryId === GREASE_TRAPS_ID) {
+        await this.loadAssets();
+      }
+    },
+
+    async loadSubCategories() {
+      // Asset Category is fixed to Drainage on this form, so Sub Category is
+      // always filtered to that one category rather than a user-chosen one.
+      this.subCategoriesLoading = true;
+      try {
+        const filters = JSON.stringify({
+          asset_category_custom_subcategory: { operatorId: 36, value: [String(DRAINAGE_CATEGORY_ID)] }
+        });
+        const res = await window.facilioApp.api.fetchAll('custom_subcategory', {
+          filters: filters,
+          perPage: 200,
+          orderBy: 'name',
+          orderType: 'asc'
+        });
+        this.subCategories = (res && res.list) || [];
+        window.facilioApp.log.info(
+          'Loaded ' + this.subCategories.length + ' Drainage sub-categories. sample=' +
+          JSON.stringify(this.subCategories[0] || {})
+        );
+      } catch (err) {
+        window.facilioApp.log.error('Failed to load Drainage sub-categories', err);
+        this.subCategories = [];
+      } finally {
+        this.subCategoriesLoading = false;
+      }
+    },
+
+    onSubCategoryChange() {
+      // Reset the Issue Type branch and Asset picker whenever Sub Category
+      // changes, since visibility of both depends on this choice.
+      this.form.issueType = null;
+      this.form.followUpValue = '';
+      this.form.assetId = null;
+      this.form.assetTypeId = null;
+      this.assets = [];
+
+      if (this.form.subCategoryId === GREASE_TRAPS_ID && this.form.siteId) {
+        this.loadAssets();
+      }
+    },
+
+    onIssueTypeChange() {
+      this.form.followUpValue = '';
+    },
+
+    async loadAssets() {
+      // Asset picker source list — assets under the Drainage / Grease Traps
+      // sub-category at the selected Store. The live SR form's WOASSETSPACE-
+      // CHOOSER widget isn't reproduced pixel-for-pixel; this achieves the
+      // same practical effect (pick a Drainage asset at this store).
+      this.assetsLoading = true;
+      try {
+        const filters = JSON.stringify({
+          siteId: { operatorId: 36, value: [String(this.form.siteId)] },
+          sub_category_asset: { operatorId: 36, value: [String(GREASE_TRAPS_ID)] }
+        });
+        const res = await window.facilioApp.api.fetchAll('asset', {
+          filters: filters,
+          perPage: 200,
+          orderBy: 'name',
+          orderType: 'asc'
+        });
+        this.assets = (res && res.list) || [];
+        window.facilioApp.log.info(
+          'Loaded ' + this.assets.length + ' Grease Traps assets for siteId=' + this.form.siteId +
+          ' sample=' + JSON.stringify(this.assets[0] || {})
+        );
+      } catch (err) {
+        window.facilioApp.log.error('Failed to load assets for Asset picker', err);
+        this.assets = [];
+      } finally {
+        this.assetsLoading = false;
+      }
+    },
+
+    onAssetChange() {
+      if (!this.form.assetId) {
+        // Matches the source "asset - null" rule: unlock Sub Category / Asset
+        // Type, clear the auto-filled Asset Type (Sub Category itself is left
+        // as-is — it's still Grease Traps, same as before an Asset was picked).
+        this.form.assetTypeId = null;
+        return;
+      }
+      // Matches the source "asset-fill" rule: copy the picked asset's own
+      // Sub Category + Asset Type onto the work order, and lock Sub Category
+      // while the Asset stays selected (see subCategoryLocked computed).
+      var asset = this.assets.find(function (a) { return a.id === this.form.assetId; }, this);
+      if (!asset) return;
+      var assetSubCategoryId = asset.sub_category_asset && asset.sub_category_asset.id;
+      var assetTypeId = asset.asset_type_asset && asset.asset_type_asset.id;
+      if (assetSubCategoryId) this.form.subCategoryId = assetSubCategoryId;
+      this.form.assetTypeId = assetTypeId || null;
+      window.facilioApp.log.info(
+        'Asset picked id=' + this.form.assetId + ' -> subCategoryId=' + assetSubCategoryId + ' assetTypeId=' + assetTypeId
+      );
+    },
+
+    onFilesPicked(e) {
+      var files = Array.prototype.slice.call(e.target.files || []);
+      this.pendingFiles = this.pendingFiles.concat(files);
+      e.target.value = '';
+    },
+    removeFile(idx) {
+      this.pendingFiles.splice(idx, 1);
+    },
+
+    validate() {
+      var e = {};
+      if (!this.form.requestedBy) e.requestedBy = true;
+      if (!this.form.description) e.description = true;
+      if (!this.form.siteId) e.siteId = true;
+      if (!this.form.spaceId) e.spaceId = true;
+      if (!this.form.subCategoryId) e.subCategoryId = true;
+      if (this.showIssueType && !this.form.issueType) e.issueType = true;
+      // Matches the source rules: every follow-up is mandatory once shown,
+      // EXCEPT the Vac Systems branch (no SET_MANDATORY action on the source rule).
+      if (this.followUpField && this.followUpField.mandatory && !this.form.followUpValue) e.followUp = true;
+      if (!this.form.hsRisk) e.hsRisk = true;
+      if (!this.pendingFiles.length) e.attachments = true;
+      this.errors = e;
+      return Object.keys(e).length === 0;
+    },
+
+    siteName(id) {
+      var s = this.sites.find(function (x) { return x.id === id; });
+      return s ? s.name : 'Store';
+    },
+    subCategoryName(id) {
+      var sc = this.subCategories.find(function (x) { return x.id === id; });
+      return sc ? sc.name : '';
+    },
+
+    async onSave() {
+      this.submitError = '';
+      if (!this.validate()) {
+        this.submitError = 'Please fill in all required fields.';
+        return;
+      }
+
+      this.saving = true;
+      try {
+        // 1. Upload the first attachment (see VERIFY note #3 in the header
+        //    comment about the FILE-field payload key convention).
+        var attachmentFileId = null;
+        if (this.pendingFiles.length) {
+          try {
+            const uploadRes = await window.facilioApp.api.uploadFile(this.pendingFiles[0]);
+            attachmentFileId = uploadRes && uploadRes.fileId;
+            window.facilioApp.log.info('Uploaded attachment, fileId=' + attachmentFileId);
+          } catch (uploadErr) {
+            window.facilioApp.log.error('Attachment upload failed', uploadErr);
+            // proceed without blocking work order creation on the attachment
+          }
+        }
+
+        var payload = {
+          subject: 'Drainage - ' + this.subCategoryName(this.form.subCategoryId) + ' - ' + this.siteName(this.form.siteId),
+          requested_by_workorder: this.form.requestedBy,
+          description: this.form.description,
+          siteId: this.form.siteId,
+          space_workorder: { id: this.form.spaceId },
+          asset_category_workorder: { id: DRAINAGE_CATEGORY_ID },
+          sub_category_workorder: { id: this.form.subCategoryId },
+          priority: PRIORITY_BY_HS_ANSWER[this.form.hsRisk]
+        };
+        payload[HS_FIELD_LINK_NAME] = HS_VALUE_BY_ANSWER[this.form.hsRisk]; // VERIFY note #1
+
+        if (this.showIssueType && this.form.issueType != null) {
+          payload.issue_type_workorder = this.form.issueType; // ENUM: plain integer, not { id }
+        }
+        if (this.followUpField && this.form.followUpValue) {
+          payload[this.followUpField.key] = this.form.followUpValue;
+        }
+        if (this.form.subCategoryId === GREASE_TRAPS_ID && this.form.assetId) {
+          payload.resource = { id: this.form.assetId, resourceType: RESOURCE_TYPE_ASSET }; // VERIFY note #2
+          if (this.form.assetTypeId) {
+            payload.asset_type_workorder = { id: this.form.assetTypeId };
+          }
+        }
+        if (attachmentFileId) {
+          payload.attachements_workorderId = attachmentFileId; // VERIFY note #3
+        }
+
+        window.facilioApp.log.info('Creating workorder, payload=' + JSON.stringify(payload));
+
+        const response = await window.facilioApp.api.createRecord('workorder', { data: payload });
+
+        if (response && response.error) {
+          throw new Error(typeof response.error === 'string' ? response.error : JSON.stringify(response.error));
+        }
+
+        this.createdWorkOrder = response && response.workorder;
+        window.facilioApp.log.info('Workorder created id=' + (this.createdWorkOrder && this.createdWorkOrder.id));
+        this.submitted = true;
+      } catch (err) {
+        window.facilioApp.log.error('Failed to create Drainage work order', err);
+        this.submitError = 'Could not create the work order. Please try again.';
+      } finally {
+        this.saving = false;
+      }
+    },
+
+    createAnother() {
+      this.form = emptyForm();
+      this.errors = {};
+      this.pendingFiles = [];
+      this.submitted = false;
+      this.createdWorkOrder = null;
+      this.spaces = [];
+      this.assets = [];
+    },
+
+    closeDialog() {
+      // VERIFY note #5: confirm exact trigger() call signature against the
+      // live SDK docs. This is the best-effort form per the fallback
+      // reference (Custom Button trigger namespace exposes "hide").
+      try {
+        window.facilioApp.trigger('customButton', { action: 'hide' });
+      } catch (err) {
+        window.facilioApp.log.error('customButton hide trigger failed', err);
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>
