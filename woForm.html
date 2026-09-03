@@ -195,6 +195,10 @@
 
     <div class="dw-body">
 
+      <div class="dw-warn-banner" v-if="catalogWarning" style="margin:0 0 14px;">
+        {{ catalogWarning }}
+      </div>
+
       <!-- Section: Default -->
       <div class="dw-section">
         <div class="dw-field full">
@@ -251,7 +255,7 @@
              form. Confirmed with you this is a real quirk on the live org and you
              asked to replicate it exactly rather than fix it — see the Roof Leaks
              notice below. -->
-        <div class="dw-row" v-if="form.subCategoryId === GREASE_TRAPS_ID">
+        <div class="dw-row" v-if="isGreaseTraps">
           <div class="dw-field full">
             <label class="dw-label">Asset</label>
             <select v-model="form.assetId" @change="onAssetChange" :disabled="!form.siteId || assetsLoading">
@@ -268,7 +272,7 @@
              Asset field" rule only checks for Grease Traps. Net effect on the
              real form: no further issue-detail question at all for this branch.
              Replicated exactly, per your instruction. -->
-        <div class="dw-row" v-if="form.subCategoryId === ROOF_LEAKS_ID">
+        <div class="dw-row" v-if="isRoofLeaks">
           <div class="dw-field full">
             <div class="dw-warn-banner">
               No further issue detail is captured for "Roof Leaks" on the live form (Issue Type is hidden and the Asset picker never appears for this sub-category — this matches the live org's actual behavior, not a bug in this app).
@@ -424,13 +428,15 @@
 //   Description                                        -> description
 //   Store (siteId)                                     -> siteId (plain number)
 //   Space (space_serviceRequest)                        -> space_workorder { id }
-//   Asset Category (category_serviceRequest_1)          -> asset_category_workorder { id: 20002 }
-//     Locked/disabled on the live form (Drainage) — fixed here too, using the
-//     numeric catalog id (20002), confirmed via the `picklist` action.
+//   Asset Category (category_serviceRequest_1)          -> asset_category_workorder { id }
+//     Locked/disabled on the live form (Drainage) — fixed here too, but the
+//     numeric catalog id is RESOLVED BY NAME at runtime (resolveCatalogIds),
+//     not hardcoded, since it's data that can differ between sandbox/prod.
 //   Sub Category (sub_category_serviceRequest)          -> sub_category_workorder { id }
 //     Filtered to Asset Category = Drainage (fixed, since Asset Category is
 //     itself fixed) rather than to a user-chosen category. Locked/auto-set
-//     when an Asset is picked (Grease Traps flow — see Q&A above).
+//     when an Asset is picked (Grease Traps flow — see Q&A above). "Grease
+//     Traps"/"Roof Leaks" ids are also resolved by name, not hardcoded.
 //   Asset (resource, WOASSETSPACECHOOSER, Grease Traps only) -> resource { id, resourceType: 2 }
 //   Asset Type (auto-filled from Asset, never user-facing)   -> asset_type_workorder { id }
 //   Issue Type (issue_type_serviceRequest, conditional  -> issue_type_workorder (ENUM, integer)
@@ -473,19 +479,30 @@
 //   5. window.facilioApp.trigger('customButton', …) call to close the dialog — the SDK
 //      reference lists "hide" as an available trigger action but not its exact call
 //      signature; re-check against the live SDK docs and adjust closeDialog() if needed.
-// ---------------------------------------------------------------------------
+//
+// -----------------------------------------------------------------------
+// FIX (sandbox testing round 1): Drainage / Grease Traps / Roof Leaks /
+// Urgent / Normal are all DATA rows in their respective catalog modules
+// (assetcategory, custom_subcategory, ticketpriority) — not part of the
+// module's schema. Their numeric ids were originally hardcoded from what
+// they happened to be in the PRODUCTION org. If sandbox has its own separate
+// copy of that catalog data, those exact numbers can be completely different
+// there, which silently breaks every `=== <hardcoded id>` check in this file
+// (the Asset picker never showing, Issue Type never hiding for Roof Leaks,
+// etc. — exactly what showed up on first sandbox test).
+// Fixed by resolving these ids BY NAME at runtime instead of hardcoding them:
+// the app now fetches the assetcategory/custom_subcategory/ticketpriority
+// lists itself and matches "Drainage" / "Grease Traps" / "Roof Leaks" /
+// "Urgent" / "Normal" by label, whatever their actual ids are in whichever
+// environment it's running in. See resolveCatalogIds() below.
+// The only things still hardcoded are genuine SCHEMA-level constants that
+// don't vary by environment (ENUM option codes: issue_type_workorder values,
+// the H&S field's Yes=1/No=2, resourceType=2) — those are part of the field
+// DEFINITION, not data, so sandbox and production share them.
+// -----------------------------------------------------------------------
 
-var DRAINAGE_CATEGORY_ID = 20002; // assetcategory catalog id for "Drainage"
-var GREASE_TRAPS_ID = 893867;     // custom_subcategory id — Asset picker shows for this one only
-var ROOF_LEAKS_ID = 893864;       // custom_subcategory id — Issue Type hidden, NO Asset picker (live quirk)
-var ASSET_DRIVEN_SUBCATEGORY_IDS = [GREASE_TRAPS_ID, ROOF_LEAKS_ID];
-var RESOURCE_TYPE_ASSET = 2; // confirmed by reading a live workorder record's `resource.resourceType`
+var RESOURCE_TYPE_ASSET = 2; // confirmed by reading a live workorder record's `resource.resourceType` — schema-level, not data
 
-// H&S -> priority catalog ids, confirmed via the live workorder.priority picklist.
-var PRIORITY_BY_HS_ANSWER = {
-  Yes: { id: 1401 }, // "Urgent"
-  No: { id: 1403 }   // "Normal"
-};
 // H&S -> new custom field value. VERIFY: assumed Yes=1/No=2 (see header Q&A) —
 // the field was created moments before this file was written and hadn't yet
 // propagated to the org's read-only metadata endpoints to confirm live.
@@ -575,16 +592,30 @@ var app = new Vue({
     assetsLoading: false,
 
     issueTypes: ISSUE_TYPES,
-    GREASE_TRAPS_ID: GREASE_TRAPS_ID,
-    ROOF_LEAKS_ID: ROOF_LEAKS_ID,
+
+    // Resolved BY NAME at runtime (see resolveCatalogIds) — never hardcoded,
+    // so this works whether you're in sandbox or production. null until resolved.
+    drainageCategoryId: null,
+    greaseTrapsId: null,
+    roofLeaksId: null,
+    priorityIdByLabel: {}, // { Urgent: <id>, Normal: <id> }
+    catalogWarning: '', // shown if any of the above couldn't be found by name
 
     pendingFiles: []
   },
 
   computed: {
+    isGreaseTraps: function () {
+      return this.greaseTrapsId != null && String(this.form.subCategoryId) === String(this.greaseTrapsId);
+    },
+    isRoofLeaks: function () {
+      return this.roofLeaksId != null && String(this.form.subCategoryId) === String(this.roofLeaksId);
+    },
     showIssueType: function () {
       if (!this.form.subCategoryId) return false;
-      return ASSET_DRIVEN_SUBCATEGORY_IDS.indexOf(this.form.subCategoryId) === -1;
+      // Not resolved yet -> don't hide Issue Type by mistake; show it as the
+      // safe default until we know which sub-categories are asset-driven.
+      return !(this.isGreaseTraps || this.isRoofLeaks);
     },
     followUpField: function () {
       if (this.form.issueType == null) return null;
@@ -593,7 +624,7 @@ var app = new Vue({
     subCategoryLocked: function () {
       // Matches the source "asset-fill" rule: Sub Category is DISABLE_FIELD'd
       // while an Asset is selected.
-      return this.form.subCategoryId === GREASE_TRAPS_ID && !!this.form.assetId;
+      return this.isGreaseTraps && !!this.form.assetId;
     }
   },
 
@@ -621,6 +652,9 @@ var app = new Vue({
 
   methods: {
     async init() {
+      // Resolve environment-specific catalog ids BY NAME first — Sub Category
+      // loading depends on drainageCategoryId, so this must finish before it.
+      await this.resolveCatalogIds();
       await Promise.all([this.loadSites(), this.loadSubCategories()]);
 
       // Custom Button context is the record the button was launched from
@@ -630,6 +664,53 @@ var app = new Vue({
       if (ctxSiteId) {
         this.form.siteId = ctxSiteId;
         await this.onStoreChange();
+      }
+    },
+
+    // Looks up "Drainage" (assetcategory), "Urgent"/"Normal" (ticketpriority)
+    // by name/displayName, whatever their actual ids are in this environment.
+    // custom_subcategory's "Grease Traps"/"Roof Leaks" are resolved separately
+    // in loadSubCategories() once that list is fetched (see below), since it's
+    // filtered by drainageCategoryId which this method resolves first.
+    async resolveCatalogIds() {
+      var warnings = [];
+      try {
+        const catRes = await window.facilioApp.api.fetchAll('assetcategory', { perPage: 200 });
+        var categories = (catRes && catRes.list) || [];
+        var drainage = categories.find(function (c) {
+          var label = (c.displayName || c.name || '').toString().trim().toLowerCase();
+          return label === 'drainage';
+        });
+        this.drainageCategoryId = drainage ? drainage.id : null;
+        if (!this.drainageCategoryId) warnings.push('Asset Category "Drainage" not found');
+      } catch (err) {
+        window.facilioApp.log.error('Failed to resolve Drainage asset category id', err);
+        warnings.push('Could not load Asset Categories');
+      }
+
+      try {
+        const prioRes = await window.facilioApp.api.fetchAll('ticketpriority', { perPage: 200 });
+        var priorities = (prioRes && prioRes.list) || [];
+        var byLabel = {};
+        priorities.forEach(function (p) {
+          var label = (p.displayName || p.name || '').toString().trim().toLowerCase();
+          byLabel[label] = p.id;
+        });
+        this.priorityIdByLabel = {
+          Urgent: byLabel['urgent'] || null,
+          Normal: byLabel['normal'] || null
+        };
+        if (!this.priorityIdByLabel.Urgent || !this.priorityIdByLabel.Normal) {
+          warnings.push('Priority "Urgent"/"Normal" not found');
+        }
+      } catch (err) {
+        window.facilioApp.log.error('Failed to resolve Urgent/Normal priority ids', err);
+        warnings.push('Could not load Priorities');
+      }
+
+      if (warnings.length) {
+        this.catalogWarning = warnings.join('; ') + ' — check these exist with these exact names in this environment.';
+        window.facilioApp.log.error('Catalog id resolution warnings: ' + this.catalogWarning);
       }
     },
 
@@ -682,7 +763,7 @@ var app = new Vue({
         this.spacesLoading = false;
       }
 
-      if (this.form.subCategoryId === GREASE_TRAPS_ID) {
+      if (this.isGreaseTraps) {
         await this.loadAssets();
       }
     },
@@ -690,22 +771,38 @@ var app = new Vue({
     async loadSubCategories() {
       // Asset Category is fixed to Drainage on this form, so Sub Category is
       // always filtered to that one category rather than a user-chosen one.
+      // If drainageCategoryId failed to resolve, fall back to an unfiltered
+      // fetch rather than silently returning nothing.
       this.subCategoriesLoading = true;
       try {
-        const filters = JSON.stringify({
-          asset_category_custom_subcategory: { operatorId: 36, value: [String(DRAINAGE_CATEGORY_ID)] }
-        });
-        const res = await window.facilioApp.api.fetchAll('custom_subcategory', {
-          filters: filters,
-          perPage: 200,
-          orderBy: 'name',
-          orderType: 'asc'
-        });
+        var opts = { perPage: 200, orderBy: 'name', orderType: 'asc' };
+        if (this.drainageCategoryId != null) {
+          opts.filters = JSON.stringify({
+            asset_category_custom_subcategory: { operatorId: 36, value: [String(this.drainageCategoryId)] }
+          });
+        }
+        const res = await window.facilioApp.api.fetchAll('custom_subcategory', opts);
         this.subCategories = (res && res.list) || [];
         window.facilioApp.log.info(
           'Loaded ' + this.subCategories.length + ' Drainage sub-categories. sample=' +
           JSON.stringify(this.subCategories[0] || {})
         );
+
+        // Resolve Grease Traps / Roof Leaks BY NAME from whatever this
+        // environment's actual records are (see FIX note in the header).
+        var grease = this.subCategories.find(function (sc) {
+          return (sc.name || '').toString().trim().toLowerCase() === 'grease traps';
+        });
+        var roof = this.subCategories.find(function (sc) {
+          return (sc.name || '').toString().trim().toLowerCase() === 'roof leaks';
+        });
+        this.greaseTrapsId = grease ? grease.id : null;
+        this.roofLeaksId = roof ? roof.id : null;
+        if (!this.greaseTrapsId || !this.roofLeaksId) {
+          this.catalogWarning = (this.catalogWarning ? this.catalogWarning + '; ' : '') +
+            'Sub Category "Grease Traps"/"Roof Leaks" not found in this environment — Asset picker / Roof Leaks behavior will not trigger.';
+          window.facilioApp.log.error(this.catalogWarning);
+        }
       } catch (err) {
         window.facilioApp.log.error('Failed to load Drainage sub-categories', err);
         this.subCategories = [];
@@ -723,7 +820,7 @@ var app = new Vue({
       this.form.assetTypeId = null;
       this.assets = [];
 
-      if (this.form.subCategoryId === GREASE_TRAPS_ID && this.form.siteId) {
+      if (this.isGreaseTraps && this.form.siteId) {
         this.loadAssets();
       }
     },
@@ -741,7 +838,7 @@ var app = new Vue({
       try {
         const filters = JSON.stringify({
           siteId: { operatorId: 36, value: [String(this.form.siteId)] },
-          sub_category_asset: { operatorId: 36, value: [String(GREASE_TRAPS_ID)] }
+          sub_category_asset: { operatorId: 36, value: [String(this.greaseTrapsId)] }
         });
         const res = await window.facilioApp.api.fetchAll('asset', {
           filters: filters,
@@ -773,7 +870,7 @@ var app = new Vue({
       // Matches the source "asset-fill" rule: copy the picked asset's own
       // Sub Category + Asset Type onto the work order, and lock Sub Category
       // while the Asset stays selected (see subCategoryLocked computed).
-      var asset = this.assets.find(function (a) { return a.id === this.form.assetId; }, this);
+      var asset = this.assets.find(function (a) { return String(a.id) === String(this.form.assetId); }, this);
       if (!asset) return;
       var assetSubCategoryId = asset.sub_category_asset && asset.sub_category_asset.id;
       var assetTypeId = asset.asset_type_asset && asset.asset_type_asset.id;
@@ -848,10 +945,15 @@ var app = new Vue({
           description: this.form.description,
           siteId: this.form.siteId,
           space_workorder: { id: this.form.spaceId },
-          asset_category_workorder: { id: DRAINAGE_CATEGORY_ID },
-          sub_category_workorder: { id: this.form.subCategoryId },
-          priority: PRIORITY_BY_HS_ANSWER[this.form.hsRisk]
+          sub_category_workorder: { id: this.form.subCategoryId }
         };
+        if (this.drainageCategoryId != null) {
+          payload.asset_category_workorder = { id: this.drainageCategoryId };
+        }
+        var priorityId = this.form.hsRisk === 'Yes' ? this.priorityIdByLabel.Urgent : this.priorityIdByLabel.Normal;
+        if (priorityId) {
+          payload.priority = { id: priorityId };
+        }
         payload[HS_FIELD_LINK_NAME] = HS_VALUE_BY_ANSWER[this.form.hsRisk]; // VERIFY note #1
 
         if (this.showIssueType && this.form.issueType != null) {
@@ -860,7 +962,7 @@ var app = new Vue({
         if (this.followUpField && this.form.followUpValue) {
           payload[this.followUpField.key] = this.form.followUpValue;
         }
-        if (this.form.subCategoryId === GREASE_TRAPS_ID && this.form.assetId) {
+        if (this.isGreaseTraps && this.form.assetId) {
           payload.resource = { id: this.form.assetId, resourceType: RESOURCE_TYPE_ASSET }; // VERIFY note #2
           if (this.form.assetTypeId) {
             payload.asset_type_workorder = { id: this.form.assetTypeId };
