@@ -263,6 +263,7 @@
               <option v-for="a in assets" :key="a.id" :value="a.id">{{ a.name }}</option>
             </select>
             <p class="dw-hint">Optional — picking an Asset auto-fills Sub Category / Asset Type from that asset's own record, same as the live form.</p>
+            <p class="dw-hint" v-if="!assetsLoading && form.siteId && assets.length === 0">No Grease Traps assets found for this Store — you can still save without picking one.</p>
           </div>
         </div>
 
@@ -499,6 +500,22 @@
 // don't vary by environment (ENUM option codes: issue_type_workorder values,
 // the H&S field's Yes=1/No=2, resourceType=2) — those are part of the field
 // DEFINITION, not data, so sandbox and production share them.
+// -----------------------------------------------------------------------
+//
+// FIX (sandbox testing round 2): after round 1, Sub Category correctly
+// resolved by name and the Asset picker correctly appeared for Grease Traps
+// — but the Asset dropdown itself stayed empty (only the placeholder
+// option). Root cause: loadAssets() filtered on TWO LOOKUP fields at once
+// (`siteId` AND `sub_category_asset`) in a single `filters` object. Field
+// names were re-verified against the live `asset` module schema and are
+// correct; the one pattern already proven to return real rows elsewhere in
+// this file (loadSubCategories()) uses exactly ONE filter key. So this file
+// no longer combines two LOOKUP filters in one request: it filters
+// server-side on Sub Category only (matching the proven-working shape) and
+// filters by Store client-side afterwards. The Asset field is optional on
+// the live form either way, so a genuinely-empty result (no Grease Traps
+// assets at that Store) now shows a clear "not found" hint instead of
+// looking indistinguishable from a bug.
 // -----------------------------------------------------------------------
 
 var RESOURCE_TYPE_ASSET = 2; // confirmed by reading a live workorder record's `resource.resourceType` — schema-level, not data
@@ -834,22 +851,43 @@ var app = new Vue({
       // sub-category at the selected Store. The live SR form's WOASSETSPACE-
       // CHOOSER widget isn't reproduced pixel-for-pixel; this achieves the
       // same practical effect (pick a Drainage asset at this store).
+      //
+      // FIX (sandbox testing round 2): the previous version filtered on
+      // BOTH siteId and sub_category_asset in one combined `filters` object
+      // and came back with zero rows in sandbox even though a matching asset
+      // existed (Sub Category = Grease Traps was correctly detected — the
+      // dropdown appeared — but it stayed empty). Both field names are
+      // confirmed correct against the live asset module schema (`siteId`
+      // LOOKUP -> site, `sub_category_asset` LOOKUP -> custom_subcategory),
+      // and a single-lookup filter is the one pattern already proven to work
+      // in this file (loadSubCategories() uses exactly one filter key and
+      // does return results) — so the suspect is combining two LOOKUP filter
+      // keys in one `filters` object, not the field names themselves.
+      // Fixed by filtering server-side on Sub Category ONLY (the same
+      // single-filter shape that already works) and filtering by Store
+      // client-side afterwards, so this no longer depends on unverified
+      // multi-condition filter syntax.
       this.assetsLoading = true;
       try {
         const filters = JSON.stringify({
-          siteId: { operatorId: 36, value: [String(this.form.siteId)] },
           sub_category_asset: { operatorId: 36, value: [String(this.greaseTrapsId)] }
         });
         const res = await window.facilioApp.api.fetchAll('asset', {
           filters: filters,
-          perPage: 200,
+          perPage: 500,
           orderBy: 'name',
           orderType: 'asc'
         });
-        this.assets = (res && res.list) || [];
+        var all = (res && res.list) || [];
+        var wantSiteId = String(this.form.siteId);
+        this.assets = all.filter(function (a) {
+          var sid = a.siteId;
+          var sidVal = (sid && typeof sid === 'object') ? sid.id : sid;
+          return String(sidVal) === wantSiteId;
+        });
         window.facilioApp.log.info(
-          'Loaded ' + this.assets.length + ' Grease Traps assets for siteId=' + this.form.siteId +
-          ' sample=' + JSON.stringify(this.assets[0] || {})
+          'Grease Traps assets: ' + all.length + ' total, ' + this.assets.length +
+          ' at siteId=' + this.form.siteId + ' sample=' + JSON.stringify(all[0] || {})
         );
       } catch (err) {
         window.facilioApp.log.error('Failed to load assets for Asset picker', err);
