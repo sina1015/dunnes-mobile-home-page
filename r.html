@@ -267,7 +267,25 @@
   </div>
   <script>
     // ============ OCCUPANT PORTAL (REQUESTER) APP BUILD ============
-    // PRODUCTION values (appId 776).
+    // Service Catalog tab id — was hardcoded to production only (22466),
+    // same issue as home.html. Resolved dynamically by org domain now.
+    // TODO: sandbox value below is a PLACEHOLDER (copied from prod) —
+    // replace with the real sandbox tab id once confirmed.
+    var SERVICE_CATALOG_TAB_ID = {
+      production: 22466,
+      sandbox: 22466   // <-- confirm and replace this
+    };
+
+    function resolveServiceCatalogTabId(org) {
+      var domain = (org && (org.domain || org.orgDomain)) || '';
+      var isSandbox = domain.toLowerCase().indexOf('sandbox') !== -1;
+      var tabId = isSandbox ? SERVICE_CATALOG_TAB_ID.sandbox : SERVICE_CATALOG_TAB_ID.production;
+      window.facilioApp.log.info(
+        'Service Catalog tab id resolved: domain="' + domain + '" -> ' +
+        (isSandbox ? 'SANDBOX' : 'PRODUCTION') + ' -> id=' + tabId
+      );
+      return tabId;
+    }
     // Module linkName holding the risk-assessment inspections.
     var INSPECTION_MODULE = 'inspectionResponse';
     // View opened when the user taps "My Pending Tasks".
@@ -356,7 +374,10 @@
           }
         },
         navigateTab() {
-          window.facilioApp.interface.trigger('navigateTab', { id: 22466, type: "SERVICE_CATALOG"});
+          var tabId = resolveServiceCatalogTabId(this.org);
+          var payload = { id: tabId, type: 'SERVICE_CATALOG' };
+          window.facilioApp.log.info('navigateTab tapped | ' + JSON.stringify(payload));
+          window.facilioApp.interface.trigger('navigateTab', payload);
         }
       }
     });
