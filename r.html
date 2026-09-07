@@ -269,11 +269,11 @@
     // ============ OCCUPANT PORTAL (REQUESTER) APP BUILD ============
     // Service Catalog tab id — was hardcoded to production only (22466),
     // same issue as home.html. Resolved dynamically by org domain now.
-    // TODO: sandbox value below is a PLACEHOLDER (copied from prod) —
-    // replace with the real sandbox tab id once confirmed.
+    // sandbox 53565 confirmed via Setup > Tabs & Layouts (webTab id under
+    // the Favorite/mobile-favourite tab group, type SERVICE_CATALOG).
     var SERVICE_CATALOG_TAB_ID = {
       production: 22466,
-      sandbox: 22466   // <-- confirm and replace this
+      sandbox: 53565
     };
 
     function resolveServiceCatalogTabId(org) {
