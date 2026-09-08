@@ -157,7 +157,7 @@
 
       <div v-else>
         <div class="header-row">
-          <span class="wo-id" v-if="workOrder && workOrder.id">#{{ workOrder.id }}</span>
+          <span class="wo-id" v-if="workOrderRef">#{{ workOrderRef }}</span>
           <span class="vendor-name">{{ vendor ? vendor.name : 'Vendor' }}</span>
         </div>
         <div class="logged-time" v-if="workOrderLoggedLabel">logged {{ workOrderLoggedLabel }}</div>
@@ -176,7 +176,7 @@
             <div class="notice-row urgent-row">
               <span class="notice-tag urgent">Urgent</span>
               <div class="notice-text">
-                <div>Call immediately if urgent assistance is required &amp; quote WO Ref #{{ workOrder && workOrder.id ? workOrder.id : '' }}.</div>
+                <div>Call immediately if urgent assistance is required &amp; quote WO Ref #{{ workOrderRef }}.</div>
                 <div v-if="oohContact" class="notice-call clickable" :class="{ copied: copyState === 'copied', 'copy-failed': copyState === 'failed' }" @click="copyValue(oohContact)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path>
@@ -252,6 +252,8 @@
       oohContactField: 'ooh_contact_vendors',
       oohNotesField: 'ooh_notes_vendors',
       contactedField: 'ooh___contacted__workorder',
+      // The human-facing WO Ref # -- serialNumber, not the internal id.
+      workOrderRefField: 'serialNumber',
       // Vendor schedule (custom_vendorschedule) -- confirmed link names from the
       // OOH boolean script work: same 'vendor' link field as on workorder.
       vendorScheduleModule: 'custom_vendorschedule',
@@ -292,6 +294,13 @@
             var d = new Date(t);
             return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           } catch (e) { return ''; }
+        },
+        // The ref number people should quote -- serialNumber (the actual WO
+        // Ref shown to occupants/vendors), falling back to id only if a
+        // record somehow has no serialNumber.
+        workOrderRef: function () {
+          if (!this.workOrder) return '';
+          return this.workOrder[CONFIG.workOrderRefField] || this.workOrder.id || '';
         }
       },
       created: function () {
@@ -480,7 +489,11 @@
           var parts = [];
           if (vendorName) parts.push(vendorName + ' available:');
           if (start && end) parts.push(start + ' to ' + end + ' hrs');
-          if (working.length && working.length < 7) parts.push(this.formatDayRanges(working));
+          if (working.length === 7) {
+            parts.push('all days');
+          } else if (working.length) {
+            parts.push(this.formatDayRanges(working));
+          }
           return parts.join(' ');
         },
 
