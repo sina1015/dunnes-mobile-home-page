@@ -171,7 +171,6 @@
           </div>
 
           <div class="schedule-pill" v-if="scheduleLabel">{{ scheduleLabel }}</div>
-          <div style="font-size:11px;color:#b00020;background:#fff3f3;border:1px dashed #b00020;border-radius:6px;padding:6px 10px;margin-bottom:14px;word-break:break-word;">DEBUG (temporary): {{ debugScheduleRaw }}</div>
 
           <div class="ooh-notice">
             <div class="notice-row urgent-row">
@@ -267,6 +266,9 @@
     };
     var ALL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     var DAY_ABBR = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat', Sunday: 'Sun' };
+    // vendor_unavailable_days_custom_vendorschedule is coded as plain numbers,
+    // confirmed from live sandbox records: 1 = Sunday, 2 = Saturday.
+    var UNAVAILABLE_DAY_CODES = { 1: 'Sunday', 2: 'Saturday' };
 
     var app = new Vue({
       el: '#app',
@@ -302,18 +304,6 @@
         workOrderRef: function () {
           if (!this.workOrder) return '';
           return this.workOrder[CONFIG.workOrderRefField] || this.workOrder.id || '';
-        },
-        // TEMP DEBUG -- shows exactly what the widget received for the
-        // schedule record, straight on the page, so this can be read
-        // without opening dev tools / Connected App logs. Remove once the
-        // day-parsing issue is confirmed fixed.
-        debugScheduleRaw: function () {
-          if (this.schedule === null) return 'schedule: not found for this vendor';
-          if (!this.schedule) return 'schedule: (still loading / no vendor)';
-          return 'schedule id=' + this.schedule.id +
-            ' | unavailable_days raw=' + JSON.stringify(this.schedule[CONFIG.scheduleUnavailableDaysField]) +
-            ' | start raw=' + JSON.stringify(this.schedule[CONFIG.scheduleStartField]) +
-            ' | end raw=' + JSON.stringify(this.schedule[CONFIG.scheduleEndField]);
         }
       },
       created: function () {
@@ -441,7 +431,6 @@
         // "Sunday, Saturday" -> [1, 2]). Also tolerates day-name strings and
         // option objects ({label:'Saturday', value:'SATURDAY'}) in case the
         // shape differs elsewhere, and a comma-separated string.
-        UNAVAILABLE_DAY_CODES: { 1: 'Sunday', 2: 'Saturday' },
         normalizeDays: function (raw) {
           if (raw == null || raw === '') return [];
           var arr = Array.isArray(raw) ? raw : String(raw).split(',');
@@ -450,11 +439,11 @@
             var item = arr[i];
             var d = '';
             if (typeof item === 'number' || (typeof item === 'string' && item.trim() !== '' && !isNaN(Number(item)))) {
-              d = this.UNAVAILABLE_DAY_CODES[Number(item)] || '';
+              d = UNAVAILABLE_DAY_CODES[Number(item)] || '';
             } else if (item && typeof item === 'object') {
               var code = item.value != null ? item.value : (item.id != null ? item.id : null);
-              if (code != null && !isNaN(Number(code)) && this.UNAVAILABLE_DAY_CODES[Number(code)]) {
-                d = this.UNAVAILABLE_DAY_CODES[Number(code)];
+              if (code != null && !isNaN(Number(code)) && UNAVAILABLE_DAY_CODES[Number(code)]) {
+                d = UNAVAILABLE_DAY_CODES[Number(code)];
               } else {
                 d = item.label || item.name || item.displayName || item.value || item.id || '';
               }
