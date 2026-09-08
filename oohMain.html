@@ -420,21 +420,31 @@
           document.body.classList.add(theme);
         },
 
-        // Accepts whatever shape the multi-select field hands back -- an
-        // array of plain day-name strings, an array of option objects
-        // (e.g. {label:'Saturday', value:'SATURDAY'}), or a comma-separated
-        // string -- and returns a clean array of recognised day names.
-        // Matching is case-insensitive since option "value"s often come
-        // back upper-cased (SATURDAY) rather than as the display label.
+        // Accepts whatever shape the multi-select field hands back. Confirmed
+        // from live sandbox records (fetchRecord raw output, not the SDK's
+        // fetchAll list projection): vendor_unavailable_days_custom_vendorschedule
+        // is a picklist coded as plain numbers, NOT strings -- 1 = Sunday,
+        // 2 = Saturday (Sirus (BMS), "Sunday" only -> [1]; Doorfix,
+        // "Sunday, Saturday" -> [1, 2]). Also tolerates day-name strings and
+        // option objects ({label:'Saturday', value:'SATURDAY'}) in case the
+        // shape differs elsewhere, and a comma-separated string.
+        UNAVAILABLE_DAY_CODES: { 1: 'Sunday', 2: 'Saturday' },
         normalizeDays: function (raw) {
-          if (!raw) return [];
+          if (raw == null || raw === '') return [];
           var arr = Array.isArray(raw) ? raw : String(raw).split(',');
           var out = [];
           for (var i = 0; i < arr.length; i++) {
             var item = arr[i];
             var d = '';
-            if (item && typeof item === 'object') {
-              d = item.label || item.name || item.displayName || item.value || item.id || '';
+            if (typeof item === 'number' || (typeof item === 'string' && item.trim() !== '' && !isNaN(Number(item)))) {
+              d = this.UNAVAILABLE_DAY_CODES[Number(item)] || '';
+            } else if (item && typeof item === 'object') {
+              var code = item.value != null ? item.value : (item.id != null ? item.id : null);
+              if (code != null && !isNaN(Number(code)) && this.UNAVAILABLE_DAY_CODES[Number(code)]) {
+                d = this.UNAVAILABLE_DAY_CODES[Number(code)];
+              } else {
+                d = item.label || item.name || item.displayName || item.value || item.id || '';
+              }
             } else {
               d = item;
             }
