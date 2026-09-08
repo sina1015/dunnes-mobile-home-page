@@ -83,9 +83,19 @@
       border-radius: 8px; padding: 8px 14px; font-size: 14px; font-weight: 700;
       color: var(--navy); margin-bottom: 16px;
     }
-    .ooh-notice { margin-bottom: 4px; }
-    .ooh-notice p { font-size: 15px; line-height: 1.6; color: var(--navy); margin-bottom: 14px; }
-    .ooh-notice p:last-child { margin-bottom: 0; }
+    .ooh-notice { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .notice-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      background: var(--pill-bg); border: 1px solid var(--pill-border);
+      border-radius: 10px; padding: 10px 14px;
+    }
+    .notice-tag {
+      flex-shrink: 0; font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.03em; padding: 4px 9px; border-radius: 999px; margin-top: 1px;
+    }
+    .notice-tag.urgent { color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
+    .notice-tag.non-urgent { color: var(--muted); background: var(--panel); }
+    .notice-text { font-size: 14px; line-height: 1.5; color: var(--navy); }
 
     .pill-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .pill {
@@ -153,9 +163,14 @@
           <div class="schedule-pill" v-if="scheduleLabel">{{ scheduleLabel }}</div>
 
           <div class="ooh-notice">
-            <p v-if="workOrder && workOrder.id"><strong>Work Order Request Ref: # {{ workOrder.id }}</strong></p>
-            <p><strong>Urgent Call</strong> (Call only if immediate assistance is required &amp; Quote WO Ref #)</p>
-            <p><strong>Non-Urgent</strong> : No further action required. This WO will be processed next working day.</p>
+            <div class="notice-row">
+              <span class="notice-tag urgent">Urgent</span>
+              <span class="notice-text">Call only if immediate assistance is required &amp; quote WO Ref #{{ workOrder && workOrder.id ? workOrder.id : '' }}.</span>
+            </div>
+            <div class="notice-row">
+              <span class="notice-tag non-urgent">Non-urgent</span>
+              <span class="notice-text">No further action required. This WO will be processed next working day.</span>
+            </div>
           </div>
 
           <div class="pill-row">
@@ -421,14 +436,33 @@
           return parts.join(', ');
         },
 
-        // Builds the "18.00 to 08.00 hrs Mon-Fri, Sat, Sun & Public Holidays"
+        // custom_vendorschedule's start/end time fields come back as raw
+        // milliseconds-since-midnight (e.g. 64800000 = 18:00), not "HH:MM"
+        // strings -- confirmed from a live sandbox record. Converts that
+        // into a zero-padded 24hr "HH:MM" string. Passes an already-
+        // formatted "HH:MM" string straight through, and tolerates a
+        // full epoch-millis timestamp (takes it mod 24h) just in case.
+        formatTimeOfDay: function (raw) {
+          if (raw == null || raw === '') return '';
+          if (typeof raw === 'string' && raw.indexOf(':') !== -1) return raw;
+          var n = Number(raw);
+          if (isNaN(n)) return String(raw);
+          var minutes = Math.round(n / 60000) % 1440;
+          if (minutes < 0) minutes += 1440;
+          var h = Math.floor(minutes / 60);
+          var m = minutes % 60;
+          var pad = function (x) { return (x < 10 ? '0' : '') + x; };
+          return pad(h) + ':' + pad(m);
+        },
+
+        // Builds the "18:00 to 08:00 hrs Mon-Fri, Sat, Sun & Public Holidays"
         // style label from the vendor's custom_vendorschedule record. The
         // displayed window is the OOH (closed) window, i.e. the complement
         // of the vendor's working hours -- so end-time is shown first.
         buildScheduleLabel: function (schedule) {
           if (!schedule) return '';
-          var start = schedule[CONFIG.scheduleStartField] || '';
-          var end = schedule[CONFIG.scheduleEndField] || '';
+          var start = this.formatTimeOfDay(schedule[CONFIG.scheduleStartField]);
+          var end = this.formatTimeOfDay(schedule[CONFIG.scheduleEndField]);
           var unavailable = this.normalizeDays(schedule[CONFIG.scheduleUnavailableDaysField]);
           var working = ALL_DAYS.filter(function (d) { return unavailable.indexOf(d) === -1; });
           var parts = [];
