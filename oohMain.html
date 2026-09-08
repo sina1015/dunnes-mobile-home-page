@@ -420,16 +420,32 @@
           document.body.classList.add(theme);
         },
 
-        // Accepts either an array of day names or a comma-separated string
-        // (both show up depending on the field's picklist config) and
-        // returns a clean array of recognised day names, in no particular order.
+        // Accepts whatever shape the multi-select field hands back -- an
+        // array of plain day-name strings, an array of option objects
+        // (e.g. {label:'Saturday', value:'SATURDAY'}), or a comma-separated
+        // string -- and returns a clean array of recognised day names.
+        // Matching is case-insensitive since option "value"s often come
+        // back upper-cased (SATURDAY) rather than as the display label.
         normalizeDays: function (raw) {
           if (!raw) return [];
           var arr = Array.isArray(raw) ? raw : String(raw).split(',');
           var out = [];
           for (var i = 0; i < arr.length; i++) {
-            var d = String(arr[i]).trim();
-            if (d && ALL_DAYS.indexOf(d) !== -1 && out.indexOf(d) === -1) out.push(d);
+            var item = arr[i];
+            var d = '';
+            if (item && typeof item === 'object') {
+              d = item.label || item.name || item.displayName || item.value || item.id || '';
+            } else {
+              d = item;
+            }
+            d = String(d).trim();
+            if (!d) continue;
+            for (var j = 0; j < ALL_DAYS.length; j++) {
+              if (ALL_DAYS[j].toLowerCase() === d.toLowerCase()) {
+                if (out.indexOf(ALL_DAYS[j]) === -1) out.push(ALL_DAYS[j]);
+                break;
+              }
+            }
           }
           return out;
         },
@@ -544,6 +560,9 @@
               });
               var schedule = schedResp && schedResp.list && schedResp.list[0];
               this.schedule = schedule || null;
+              if (schedule) {
+                this.log('info', 'OOH_TAB schedule raw unavailable days: ' + JSON.stringify(schedule[CONFIG.scheduleUnavailableDaysField]));
+              }
               this.scheduleLabel = this.buildScheduleLabel(schedule);
               this.log('info', 'OOH_TAB schedule ' + (schedule ? ('found id=' + schedule.id) : 'not found for vendor ' + this.vendorId) + ' | label="' + this.scheduleLabel + '"');
             } catch (schedErr) {
