@@ -78,6 +78,14 @@
     .ooh-banner-title { font-size: 13px; font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: 0.04em; }
     .ooh-banner-body { color: var(--navy); font-size: 16px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; margin-bottom: 18px; }
     .ooh-banner-body.empty { color: var(--muted); font-style: italic; }
+    .schedule-pill {
+      display: inline-block; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 14px; font-size: 14px; font-weight: 700;
+      color: var(--navy); margin-bottom: 16px;
+    }
+    .ooh-notice { margin-bottom: 4px; }
+    .ooh-notice p { font-size: 15px; line-height: 1.6; color: var(--navy); margin-bottom: 14px; }
+    .ooh-notice p:last-child { margin-bottom: 0; }
 
     .pill-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .pill {
@@ -142,7 +150,13 @@
             <div class="ooh-banner-title">Out of hours</div>
           </div>
 
-          <div class="ooh-banner-body" :class="{ empty: !oohNotes }">{{ oohNotes || 'No out-of-hours notes on file for this vendor.' }}</div>
+          <div class="schedule-pill" v-if="scheduleLabel">{{ scheduleLabel }}</div>
+
+          <div class="ooh-notice">
+            <p v-if="workOrder && workOrder.id"><strong>Work Order Request Ref: # {{ workOrder.id }}</strong></p>
+            <p><strong>Urgent Call</strong> (Call only if immediate assistance is required &amp; Quote WO Ref #)</p>
+            <p><strong>Non-Urgent</strong> : No further action required. This WO will be processed next working day.</p>
+          </div>
 
           <div class="pill-row">
             <div v-if="oohContact" class="pill clickable" :class="{ copied: copyState === 'copied', 'copy-failed': copyState === 'failed' }" @click="copyValue(oohContact)">
@@ -150,14 +164,6 @@
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path>
               </svg>
               <span>{{ copyState === 'copied' ? 'Copied' : (copyState === 'failed' ? 'Copy failed — long-press to copy' : oohContact) }}</span>
-            </div>
-
-            <div v-if="oohEmail" class="pill plain">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
-              </svg>
-              <span>{{ oohEmail }}</span>
             </div>
 
             <div class="pill contacted-btn clickable" :class="{ done: oohContacted }" @click="toggleContacted">
@@ -186,10 +192,13 @@
      * from this session; only KSD and Trinity Health are reachable). They are
      * taken directly from what was specified:
      *   - workOrder.vendor         -- standard CMMS lookup field name.
-     *   - vendors.ooh_contact_vendors, vendors.ooh_email_vendors,
-     *     vendors.ooh_notes_vendors -- as given.
+     *   - vendors.ooh_contact_vendors, vendors.ooh_notes_vendors -- as given.
+     *     (email deliberately dropped -- phone only, per request.)
      *   - workorder.ooh___contacted__workorder (BOOLEAN) -- as given, exact
      *     underscore count preserved verbatim (3 then 2), not normalized.
+     *   - custom_vendorschedule: vendor, start_time_custom_vendorschedule,
+     *     end_time_custom_vendorschedule, vendor_unavailable_days_custom_vendorschedule
+     *     -- confirmed link names, matching the OOH boolean script work.
      *
      * The bigger unknown: a Web Tab's getContext() returns a QUERY PARAMS
      * object (or {}), NOT the record directly (unlike Summary Tab / Custom
@@ -215,12 +224,20 @@
       vendorModule: 'vendors',
       vendorLookupField: 'vendor',
       oohContactField: 'ooh_contact_vendors',
-      oohEmailField: 'ooh_email_vendors',
       oohNotesField: 'ooh_notes_vendors',
       contactedField: 'ooh___contacted__workorder',
+      // Vendor schedule (custom_vendorschedule) -- confirmed link names from the
+      // OOH boolean script work: same 'vendor' link field as on workorder.
+      vendorScheduleModule: 'custom_vendorschedule',
+      scheduleVendorLookupField: 'vendor',
+      scheduleStartField: 'start_time_custom_vendorschedule',
+      scheduleEndField: 'end_time_custom_vendorschedule',
+      scheduleUnavailableDaysField: 'vendor_unavailable_days_custom_vendorschedule',
       // Tried in order against both the top-level context and context.query.
       recordIdKeys: ['id', 'recordId', 'workorderId', 'workOrderId', 'moduleRecordId']
     };
+    var ALL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    var DAY_ABBR = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat', Sunday: 'Sun' };
 
     var app = new Vue({
       el: '#app',
@@ -231,8 +248,9 @@
         vendorId: null,
         vendor: null,
         oohContact: '',
-        oohEmail: '',
         oohNotes: '',
+        schedule: null,
+        scheduleLabel: '',
         oohContacted: false,
         contactedSaving: false,
         copyState: null,
@@ -367,6 +385,62 @@
           document.body.classList.add(theme);
         },
 
+        // Accepts either an array of day names or a comma-separated string
+        // (both show up depending on the field's picklist config) and
+        // returns a clean array of recognised day names, in no particular order.
+        normalizeDays: function (raw) {
+          if (!raw) return [];
+          var arr = Array.isArray(raw) ? raw : String(raw).split(',');
+          var out = [];
+          for (var i = 0; i < arr.length; i++) {
+            var d = String(arr[i]).trim();
+            if (d && ALL_DAYS.indexOf(d) !== -1 && out.indexOf(d) === -1) out.push(d);
+          }
+          return out;
+        },
+
+        // Compresses a set of days into "Mon-Fri" / "Sat, Sun" style ranges,
+        // walking the week Mon->Sun so runs of 3+ consecutive days collapse
+        // to "First-Last" and shorter runs stay comma-separated.
+        formatDayRanges: function (days) {
+          if (!days || !days.length) return '';
+          var idx = days.map(function (d) { return ALL_DAYS.indexOf(d); }).sort(function (a, b) { return a - b; });
+          var ranges = [];
+          var start = idx[0], prev = idx[0];
+          for (var i = 1; i <= idx.length; i++) {
+            var cur = idx[i];
+            if (cur === prev + 1) { prev = cur; continue; }
+            ranges.push([start, prev]);
+            start = cur; prev = cur;
+          }
+          var parts = ranges.map(function (r) {
+            var a = DAY_ABBR[ALL_DAYS[r[0]]], b = DAY_ABBR[ALL_DAYS[r[1]]];
+            if (r[1] === r[0]) return a;
+            return (r[1] - r[0] >= 2) ? (a + '-' + b) : (a + ', ' + b);
+          });
+          return parts.join(', ');
+        },
+
+        // Builds the "18.00 to 08.00 hrs Mon-Fri, Sat, Sun & Public Holidays"
+        // style label from the vendor's custom_vendorschedule record. The
+        // displayed window is the OOH (closed) window, i.e. the complement
+        // of the vendor's working hours -- so end-time is shown first.
+        buildScheduleLabel: function (schedule) {
+          if (!schedule) return '';
+          var start = schedule[CONFIG.scheduleStartField] || '';
+          var end = schedule[CONFIG.scheduleEndField] || '';
+          var unavailable = this.normalizeDays(schedule[CONFIG.scheduleUnavailableDaysField]);
+          var working = ALL_DAYS.filter(function (d) { return unavailable.indexOf(d) === -1; });
+          var parts = [];
+          if (start && end) parts.push(end + ' to ' + start + ' hrs');
+          var dayBits = [];
+          if (working.length && working.length < 7) dayBits.push(this.formatDayRanges(working));
+          if (unavailable.length) dayBits.push(this.formatDayRanges(unavailable));
+          if (dayBits.length) parts.push(dayBits.join(', '));
+          parts.push('& Public Holidays');
+          return parts.join(' ');
+        },
+
         init: async function () {
           this.applyTheme();
           try {
@@ -401,9 +475,24 @@
             var vendor = vResp && (vResp[CONFIG.vendorModule] || vResp.record || vResp);
             this.vendor = vendor || null;
             this.oohContact = vendor ? (vendor[CONFIG.oohContactField] || '') : '';
-            this.oohEmail = vendor ? (vendor[CONFIG.oohEmailField] || '') : '';
             this.oohNotes = vendor ? (vendor[CONFIG.oohNotesField] || '') : '';
-            this.log('info', 'OOH_TAB vendor loaded: ' + JSON.stringify({ id: this.vendorId, hasContact: !!this.oohContact, hasEmail: !!this.oohEmail, hasNotes: !!this.oohNotes, contacted: this.oohContacted }));
+            this.log('info', 'OOH_TAB vendor loaded: ' + JSON.stringify({ id: this.vendorId, hasContact: !!this.oohContact, hasNotes: !!this.oohNotes, contacted: this.oohContacted }));
+
+            try {
+              var schedFilters = {};
+              schedFilters[CONFIG.scheduleVendorLookupField] = { operatorId: 36, value: [String(this.vendorId)] };
+              var schedResp = await window.facilioApp.api.fetchAll(CONFIG.vendorScheduleModule, {
+                filters: JSON.stringify(schedFilters),
+                perPage: 1,
+                page: 1
+              });
+              var schedule = schedResp && schedResp.list && schedResp.list[0];
+              this.schedule = schedule || null;
+              this.scheduleLabel = this.buildScheduleLabel(schedule);
+              this.log('info', 'OOH_TAB schedule ' + (schedule ? ('found id=' + schedule.id) : 'not found for vendor ' + this.vendorId) + ' | label="' + this.scheduleLabel + '"');
+            } catch (schedErr) {
+              this.log('error', 'OOH_TAB schedule fetch failed', schedErr);
+            }
           } catch (e) {
             this.fatalError = 'Something went wrong loading vendor out-of-hours info. Check the Connected App logs for details.';
             this.log('error', 'OOH_TAB init failed: ' + (e && e.message ? e.message : e), e);
