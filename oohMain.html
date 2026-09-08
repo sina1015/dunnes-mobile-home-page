@@ -171,6 +171,7 @@
           </div>
 
           <div class="schedule-pill" v-if="scheduleLabel">{{ scheduleLabel }}</div>
+          <div style="font-size:11px;color:#b00020;background:#fff3f3;border:1px dashed #b00020;border-radius:6px;padding:6px 10px;margin-bottom:14px;word-break:break-word;">DEBUG (temporary): {{ debugScheduleRaw }}</div>
 
           <div class="ooh-notice">
             <div class="notice-row urgent-row">
@@ -301,6 +302,18 @@
         workOrderRef: function () {
           if (!this.workOrder) return '';
           return this.workOrder[CONFIG.workOrderRefField] || this.workOrder.id || '';
+        },
+        // TEMP DEBUG -- shows exactly what the widget received for the
+        // schedule record, straight on the page, so this can be read
+        // without opening dev tools / Connected App logs. Remove once the
+        // day-parsing issue is confirmed fixed.
+        debugScheduleRaw: function () {
+          if (this.schedule === null) return 'schedule: not found for this vendor';
+          if (!this.schedule) return 'schedule: (still loading / no vendor)';
+          return 'schedule id=' + this.schedule.id +
+            ' | unavailable_days raw=' + JSON.stringify(this.schedule[CONFIG.scheduleUnavailableDaysField]) +
+            ' | start raw=' + JSON.stringify(this.schedule[CONFIG.scheduleStartField]) +
+            ' | end raw=' + JSON.stringify(this.schedule[CONFIG.scheduleEndField]);
         }
       },
       created: function () {
