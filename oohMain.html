@@ -107,20 +107,12 @@
     .notice-call.copied { color: var(--green); border-color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); }
     .notice-call.copy-failed { color: var(--red); }
 
-    .pill-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .pill {
-      display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px;
-      border: 1px solid var(--pill-border); border-radius: 999px; background: var(--pill-bg);
-      font-size: 14px; font-weight: 600; color: var(--navy);
+    .ref-pill {
+      display: inline-flex; align-items: center; gap: 6px; background: var(--panel);
+      border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px;
+      font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 12px; margin-left: 8px;
     }
-    .pill svg { width: 16px; height: 16px; flex-shrink: 0; }
-    .pill.clickable { cursor: pointer; }
-    .pill.clickable:hover { background: var(--panel); }
-    .pill.plain { cursor: default; }
-    .pill.copied { color: var(--green); border-color: var(--green); }
-    .pill.copy-failed { color: var(--red); border-color: var(--red); }
-    .pill.contacted-btn { color: var(--muted); }
-    .pill.contacted-btn.done { color: var(--green); border-color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); }
+    .ref-pill .ref-label { font-weight: 500; color: var(--muted); }
 
     .empty-state, .error-state { padding: 32px 16px; text-align: center; color: var(--muted); }
     .error-state { color: var(--red); }
@@ -131,9 +123,6 @@
       .vendor-name { font-size: 18px; }
       .ooh-banner { padding: 16px; border-radius: 12px; }
       .ooh-banner-body { font-size: 15.5px; margin-bottom: 16px; }
-      .pill-row { flex-direction: column; align-items: stretch; gap: 8px; }
-      .pill { width: 100%; padding: 12px 16px; justify-content: flex-start; }
-      .pill span { word-break: break-word; }
       .empty-state, .error-state { padding: 24px 12px; font-size: 13.5px; }
     }
   </style>
@@ -171,12 +160,13 @@
           </div>
 
           <div class="schedule-pill" v-if="scheduleLabel">{{ scheduleLabel }}</div>
+          <div class="ref-pill" v-if="workOrderRef"><span class="ref-label">WO Ref</span> #{{ workOrderRef }}</div>
 
           <div class="ooh-notice">
             <div class="notice-row urgent-row">
               <span class="notice-tag urgent">Urgent</span>
               <div class="notice-text">
-                <div>Call immediately if urgent assistance is required &amp; quote WO Ref #{{ workOrderRef }}.</div>
+                <div>Call immediately if urgent assistance is required.</div>
                 <div v-if="oohContact" class="notice-call clickable" :class="{ copied: copyState === 'copied', 'copy-failed': copyState === 'failed' }" @click="copyValue(oohContact)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path>
@@ -188,18 +178,6 @@
             <div class="notice-row">
               <span class="notice-tag non-urgent">Non-urgent</span>
               <span class="notice-text">No further action required. This WO will be processed next working day.</span>
-            </div>
-          </div>
-
-          <div class="pill-row">
-            <div class="pill contacted-btn clickable" :class="{ done: oohContacted }" @click="toggleContacted">
-              <svg v-if="oohContacted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 6 9 17l-5-5"></path>
-              </svg>
-              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="9"></circle>
-              </svg>
-              <span>{{ contactedSaving ? 'Saving…' : (oohContacted ? 'Contacted' : "I've contacted them") }}</span>
             </div>
           </div>
         </div>
@@ -220,8 +198,6 @@
      *   - workOrder.vendor         -- standard CMMS lookup field name.
      *   - vendors.ooh_contact_vendors, vendors.ooh_notes_vendors -- as given.
      *     (email deliberately dropped -- phone only, per request.)
-     *   - workorder.ooh___contacted__workorder (BOOLEAN) -- as given, exact
-     *     underscore count preserved verbatim (3 then 2), not normalized.
      *   - custom_vendorschedule: vendor, start_time_custom_vendorschedule,
      *     end_time_custom_vendorschedule, vendor_unavailable_days_custom_vendorschedule
      *     -- confirmed link names, matching the OOH boolean script work.
@@ -251,7 +227,6 @@
       vendorLookupField: 'vendor',
       oohContactField: 'ooh_contact_vendors',
       oohNotesField: 'ooh_notes_vendors',
-      contactedField: 'ooh___contacted__workorder',
       // The human-facing WO Ref # -- serialNumber, not the internal id.
       workOrderRefField: 'serialNumber',
       // Vendor schedule (custom_vendorschedule) -- confirmed link names from the
@@ -282,8 +257,6 @@
         oohNotes: '',
         schedule: null,
         scheduleLabel: '',
-        oohContacted: false,
-        contactedSaving: false,
         copyState: null,
         rawContext: null
       },
@@ -353,24 +326,6 @@
             });
           } else {
             legacyFallback();
-          }
-        },
-
-        toggleContacted: async function () {
-          if (this.contactedSaving || !this.workOrder || this.workOrder.id == null) return;
-          var next = !this.oohContacted;
-          this.contactedSaving = true;
-          try {
-            var data = {};
-            data[CONFIG.contactedField] = next;
-            var resp = await window.facilioApp.api.updateRecord(CONFIG.workOrderModule, { id: this.workOrder.id, data: data });
-            if (resp && resp.error) throw new Error(this.errText(resp.error));
-            this.oohContacted = next;
-            this.log('info', 'OOH_TAB contacted flag set to ' + next);
-          } catch (e) {
-            this.log('error', 'OOH_TAB toggleContacted failed: ' + (e && e.message ? e.message : e), e);
-          } finally {
-            this.contactedSaving = false;
           }
         },
 
@@ -543,7 +498,6 @@
             var woResp = await window.facilioApp.api.fetchRecord(CONFIG.workOrderModule, { id: workOrderId });
             var wo = woResp && (woResp[CONFIG.workOrderModule] || woResp.record || woResp);
             this.workOrder = wo || null;
-            this.oohContacted = !!(wo && wo[CONFIG.contactedField]);
             this.log('info', 'OOH_TAB workorder fetched, vendor raw: ' + JSON.stringify(wo && wo[CONFIG.vendorLookupField]));
 
             var vendorRef = wo && wo[CONFIG.vendorLookupField];
@@ -560,7 +514,7 @@
             this.vendor = vendor || null;
             this.oohContact = vendor ? (vendor[CONFIG.oohContactField] || '') : '';
             this.oohNotes = vendor ? (vendor[CONFIG.oohNotesField] || '') : '';
-            this.log('info', 'OOH_TAB vendor loaded: ' + JSON.stringify({ id: this.vendorId, hasContact: !!this.oohContact, hasNotes: !!this.oohNotes, contacted: this.oohContacted }));
+            this.log('info', 'OOH_TAB vendor loaded: ' + JSON.stringify({ id: this.vendorId, hasContact: !!this.oohContact, hasNotes: !!this.oohNotes }));
 
             try {
               var schedFilters = {};
