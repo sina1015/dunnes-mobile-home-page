@@ -167,11 +167,18 @@
               <span class="notice-tag urgent">Urgent</span>
               <div class="notice-text">
                 <div>Call immediately if urgent assistance is required.</div>
-                <div v-if="oohContact" class="notice-call clickable" :class="{ copied: copyState === 'copied', 'copy-failed': copyState === 'failed' }" @click="copyValue(oohContact)">
+                <div v-if="oohContact" class="notice-call clickable" :class="{ copied: copyState === 'copied' && copyField === 'contact', 'copy-failed': copyState === 'failed' && copyField === 'contact' }" @click="copyValue(oohContact, 'contact')">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path>
                   </svg>
-                  <span>{{ copyState === 'copied' ? 'Copied — ' + oohContact : (copyState === 'failed' ? 'Copy failed — long-press to copy' : 'Call ' + oohContact) }}</span>
+                  <span>{{ (copyState === 'copied' && copyField === 'contact') ? 'Copied — ' + oohContact : ((copyState === 'failed' && copyField === 'contact') ? 'Copy failed — long-press to copy' : 'Call ' + oohContact) }}</span>
+                </div>
+                <div v-if="oohEmail" class="notice-call clickable" :class="{ copied: copyState === 'copied' && copyField === 'email', 'copy-failed': copyState === 'failed' && copyField === 'email' }" @click="copyValue(oohEmail, 'email')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                    <polyline points="22,6 12,13 2,6"></polyline>
+                  </svg>
+                  <span>{{ (copyState === 'copied' && copyField === 'email') ? 'Copied — ' + oohEmail : ((copyState === 'failed' && copyField === 'email') ? 'Copy failed — long-press to copy' : oohEmail) }}</span>
                 </div>
               </div>
             </div>
@@ -196,10 +203,10 @@
      * from this session; only KSD and Trinity Health are reachable). They are
      * taken directly from what was specified:
      *   - workOrder.vendor         -- standard CMMS lookup field name.
-     *   - vendors.ooh_contact_vendors, vendors.ooh_notes_vendors -- as given.
-     *     (email deliberately dropped -- phone only, per request.)
+     *   - vendors.ooh_notes_vendors -- as given (not currently shown in the UI).
      *   - custom_vendorschedule: vendor, start_time_custom_vendorschedule,
-     *     end_time_custom_vendorschedule, vendor_unavailable_days_custom_vendorschedule
+     *     end_time_custom_vendorschedule, vendor_unavailable_days_custom_vendorschedule,
+     *     ooh_contact_custom_vendorschedule, ooh_email_custom_vendorschedule
      *     -- confirmed link names, matching the OOH boolean script work.
      *
      * The bigger unknown: a Web Tab's getContext() returns a QUERY PARAMS
@@ -225,7 +232,8 @@
       workOrderModule: 'workorder',
       vendorModule: 'vendors',
       vendorLookupField: 'vendor',
-      oohContactField: 'ooh_contact_vendors',
+      oohContactField: 'ooh_contact_custom_vendorschedule',
+      oohEmailField: 'ooh_email_custom_vendorschedule',
       oohNotesField: 'ooh_notes_vendors',
       // The human-facing WO Ref # -- serialNumber, not the internal id.
       workOrderRefField: 'serialNumber',
@@ -254,10 +262,12 @@
         vendorId: null,
         vendor: null,
         oohContact: '',
+        oohEmail: '',
         oohNotes: '',
         schedule: null,
         scheduleLabel: '',
         copyState: null,
+        copyField: null,
         rawContext: null
       },
       computed: {
@@ -294,16 +304,21 @@
         // inside an iframe without clipboard-write permission), fall back to
         // the legacy textarea+execCommand method, and surface a clear
         // "failed" state rather than pretending it worked either way.
-        copyValue: function (value) {
+        // `field` identifies which pill triggered the copy ('contact' or
+        // 'email') so the two pills track their copied/failed state
+        // independently instead of both lighting up together.
+        copyValue: function (value, field) {
           var self = this;
           var markCopied = function () {
             self.copyState = 'copied';
-            setTimeout(function () { if (self.copyState === 'copied') self.copyState = null; }, 1500);
+            self.copyField = field;
+            setTimeout(function () { if (self.copyState === 'copied' && self.copyField === field) { self.copyState = null; self.copyField = null; } }, 1500);
           };
           var markFailed = function (err) {
             self.log('error', 'OOH_TAB copy failed', err);
             self.copyState = 'failed';
-            setTimeout(function () { if (self.copyState === 'failed') self.copyState = null; }, 2500);
+            self.copyField = field;
+            setTimeout(function () { if (self.copyState === 'failed' && self.copyField === field) { self.copyState = null; self.copyField = null; } }, 2500);
           };
           var legacyFallback = function () {
             try {
@@ -512,9 +527,8 @@
             var vResp = await window.facilioApp.api.fetchRecord(CONFIG.vendorModule, { id: this.vendorId });
             var vendor = vResp && (vResp[CONFIG.vendorModule] || vResp.record || vResp);
             this.vendor = vendor || null;
-            this.oohContact = vendor ? (vendor[CONFIG.oohContactField] || '') : '';
             this.oohNotes = vendor ? (vendor[CONFIG.oohNotesField] || '') : '';
-            this.log('info', 'OOH_TAB vendor loaded: ' + JSON.stringify({ id: this.vendorId, hasContact: !!this.oohContact, hasNotes: !!this.oohNotes }));
+            this.log('info', 'OOH_TAB vendor loaded: ' + JSON.stringify({ id: this.vendorId, hasNotes: !!this.oohNotes }));
 
             try {
               var schedFilters = {};
@@ -526,11 +540,13 @@
               });
               var schedule = schedResp && schedResp.list && schedResp.list[0];
               this.schedule = schedule || null;
+              this.oohContact = schedule ? (schedule[CONFIG.oohContactField] || '') : '';
+              this.oohEmail = schedule ? (schedule[CONFIG.oohEmailField] || '') : '';
               if (schedule) {
                 this.log('info', 'OOH_TAB schedule raw unavailable days: ' + JSON.stringify(schedule[CONFIG.scheduleUnavailableDaysField]));
               }
               this.scheduleLabel = this.buildScheduleLabel(schedule);
-              this.log('info', 'OOH_TAB schedule ' + (schedule ? ('found id=' + schedule.id) : 'not found for vendor ' + this.vendorId) + ' | label="' + this.scheduleLabel + '"');
+              this.log('info', 'OOH_TAB schedule ' + (schedule ? ('found id=' + schedule.id) : 'not found for vendor ' + this.vendorId) + ' | label="' + this.scheduleLabel + '" | hasContact=' + !!this.oohContact + ' hasEmail=' + !!this.oohEmail);
             } catch (schedErr) {
               this.log('error', 'OOH_TAB schedule fetch failed', schedErr);
             }
