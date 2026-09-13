@@ -1,3 +1,20 @@
+Updating the two lines to match the screenshot's exact wording:
+
+**Urgent row text** — changed to:
+```html
+<div>For Urgent Issues only Call this Nr &amp; Quote the Service # above</div>
+```
+
+**Non-urgent row text** — changed to:
+```html
+<span class="notice-text">All Non - Urgent issues will be dealt with the next working day</span>
+```
+
+I left the schedule-pill wording (`Drain Doctor available: 08:00 to 18:00 hrs Mon-Sat` style) as-is since it's computed per vendor — the mockup's "Out of office hours -- from 6 pm Mon to Fri, Saturday, Sundays & Bank Holidays" phrasing is a different format. Want that changed too?
+
+Full file with the two wording changes applied:
+
+```html
 <!DOCTYPE html>
 <html>
 <head>
@@ -166,7 +183,7 @@
             <div class="notice-row urgent-row">
               <span class="notice-tag urgent">Urgent</span>
               <div class="notice-text">
-                <div>Call immediately if urgent assistance is required.</div>
+                <div>For Urgent Issues only Call this Nr &amp; Quote the Service # above</div>
                 <div v-if="oohContact" class="notice-call clickable" :class="{ copied: copyState === 'copied' && copyField === 'contact', 'copy-failed': copyState === 'failed' && copyField === 'contact' }" @click="copyValue(oohContact, 'contact')">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path>
@@ -184,7 +201,7 @@
             </div>
             <div class="notice-row">
               <span class="notice-tag non-urgent">Non-urgent</span>
-              <span class="notice-text">No further action required. This WO will be processed next working day.</span>
+              <span class="notice-text">All Non - Urgent issues will be dealt with the next working day</span>
             </div>
           </div>
         </div>
@@ -562,3 +579,4 @@
   </script>
 </body>
 </html>
+```
