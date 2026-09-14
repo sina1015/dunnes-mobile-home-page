@@ -1,20 +1,3 @@
-Updating the two lines to match the screenshot's exact wording:
-
-**Urgent row text** — changed to:
-```html
-<div>For Urgent Issues only Call this Nr &amp; Quote the Service # above</div>
-```
-
-**Non-urgent row text** — changed to:
-```html
-<span class="notice-text">All Non - Urgent issues will be dealt with the next working day</span>
-```
-
-I left the schedule-pill wording (`Drain Doctor available: 08:00 to 18:00 hrs Mon-Sat` style) as-is since it's computed per vendor — the mockup's "Out of office hours -- from 6 pm Mon to Fri, Saturday, Sundays & Bank Holidays" phrasing is a different format. Want that changed too?
-
-Full file with the two wording changes applied:
-
-```html
 <!DOCTYPE html>
 <html>
 <head>
@@ -471,6 +454,25 @@ Full file with the two wording changes applied:
           return parts.join(', ');
         },
 
+        // "Mon to Fri" style range for the working (non-OOH) days, used
+        // inside the out-of-hours label below.
+        formatWorkingRange: function (days) {
+          if (!days || !days.length) return '';
+          var idx = days.map(function (d) { return ALL_DAYS.indexOf(d); }).sort(function (a, b) { return a - b; });
+          var ranges = [];
+          var start = idx[0], prev = idx[0];
+          for (var i = 1; i <= idx.length; i++) {
+            var cur = idx[i];
+            if (cur === prev + 1) { prev = cur; continue; }
+            ranges.push([start, prev]);
+            start = cur; prev = cur;
+          }
+          return ranges.map(function (r) {
+            var a = DAY_ABBR[ALL_DAYS[r[0]]], b = DAY_ABBR[ALL_DAYS[r[1]]];
+            return r[1] === r[0] ? a : (a + ' to ' + b);
+          }).join(', ');
+        },
+
         // custom_vendorschedule's start/end time fields come back as raw
         // milliseconds-since-midnight (e.g. 64800000 = 18:00), not "HH:MM"
         // strings -- confirmed from a live sandbox record. Converts that
@@ -490,26 +492,48 @@ Full file with the two wording changes applied:
           return pad(h) + ':' + pad(m);
         },
 
-        // Builds the "Drain Doctor available: 08:00 to 18:00 hrs Mon-Sat"
-        // style label from the vendor's custom_vendorschedule record --
-        // shows the vendor's actual working window and working days (i.e.
-        // whichever days are NOT in vendor_unavailable_days_custom_vendorschedule).
+        // Same underlying value as formatTimeOfDay, but rendered "6 pm" /
+        // "1:30 pm" style for the out-of-hours label (matches the confirmed
+        // wording rather than a 24hr "HH:MM" time).
+        formatHour12: function (raw) {
+          if (raw == null || raw === '') return '';
+          var n = Number(raw);
+          if (isNaN(n)) return String(raw);
+          var minutes = Math.round(n / 60000) % 1440;
+          if (minutes < 0) minutes += 1440;
+          var h = Math.floor(minutes / 60);
+          var m = minutes % 60;
+          var period = h >= 12 ? 'pm' : 'am';
+          var h12 = h % 12;
+          if (h12 === 0) h12 = 12;
+          return m === 0 ? (h12 + ' ' + period) : (h12 + ':' + (m < 10 ? '0' : '') + m + ' ' + period);
+        },
+
+        // "Out of office hours -- from 6 pm Mon to Fri, Saturday, Sunday &
+        // Bank Holidays" -- built from the same custom_vendorschedule fields
+        // as before (end time + unavailable days), just flipped to describe
+        // when the vendor is OOH instead of when they're open. Bank Holidays
+        // is always appended since that's a separate always-OOH condition
+        // (matches the OOH boolean script logic), not vendor-schedule-driven.
         buildScheduleLabel: function (schedule) {
           if (!schedule) return '';
-          var start = this.formatTimeOfDay(schedule[CONFIG.scheduleStartField]);
-          var end = this.formatTimeOfDay(schedule[CONFIG.scheduleEndField]);
+          var endTime = this.formatHour12(schedule[CONFIG.scheduleEndField]);
           var unavailable = this.normalizeDays(schedule[CONFIG.scheduleUnavailableDaysField]);
+          unavailable.sort(function (a, b) { return ALL_DAYS.indexOf(a) - ALL_DAYS.indexOf(b); });
           var working = ALL_DAYS.filter(function (d) { return unavailable.indexOf(d) === -1; });
-          var vendorName = this.vendor && this.vendor.name;
-          var parts = [];
-          if (vendorName) parts.push(vendorName + ' available:');
-          if (start && end) parts.push(start + ' to ' + end + ' hrs');
+
+          var dayBits = [];
           if (working.length === 7) {
-            parts.push('all days');
+            dayBits.push('every day');
           } else if (working.length) {
-            parts.push(this.formatDayRanges(working));
+            dayBits.push(this.formatWorkingRange(working));
           }
-          return parts.join(' ');
+          dayBits = dayBits.concat(unavailable);
+
+          var label = 'Out of office hours --';
+          if (endTime) label += ' from ' + endTime;
+          label += (dayBits.length ? ' ' + dayBits.join(', ') : '') + ' & Bank Holidays';
+          return label;
         },
 
         init: async function () {
@@ -579,4 +603,3 @@ Full file with the two wording changes applied:
   </script>
 </body>
 </html>
-```
