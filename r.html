@@ -310,8 +310,10 @@
     // View opened when the user taps "My Pending Tasks".
     // No filter is applied in code — this saved view does its own filtering.
     var PENDING_VIEW = 'approvalpendingriskassessment';
-    // View opened by "Surveys to Complete". Same view link name in live and sandbox.
-    var SURVEY_VIEW = 'workcompletionsurvey';
+    // "Surveys to Complete" -> portal Survey list (service/survey/work-completion-survey/open).
+    // Same module + view link name in live and sandbox.
+    var SURVEY_MODULE = 'surveyResponse';
+    var SURVEY_VIEW = 'open';
     // Module linkName for work orders, opened by "View Work Orders".
     var WORKORDER_MODULE = 'workorder';
     // =========================================================
@@ -381,7 +383,7 @@
         openSurveyTasks() {
           try {
             var payload = {
-              module: INSPECTION_MODULE,
+              module: SURVEY_MODULE,
               view: SURVEY_VIEW
             };
             window.facilioApp.log.info('Survey tasks tapped | openListView ' + JSON.stringify(payload));
