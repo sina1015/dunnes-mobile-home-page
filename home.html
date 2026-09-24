@@ -260,6 +260,25 @@
             </svg>
           </span>
         </button>
+        <button class="action-card" @click="openSurveyTasks">
+          <span class="action-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 11l3 3L22 4"/>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            </svg>
+          </span>
+          <span class="action-title">
+            Surveys to Complete
+            <div class="subtle">Work Completion Surveys</div>
+          </span>
+          <span class="chev">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </span>
+        </button>
         <button class="action-card" @click="openWorkOrders">
           <span class="action-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -294,6 +313,8 @@
     // not a per-record catalog id), so it's already portable across
     // sandbox/production as-is -- no change needed here.
     var PENDING_VIEW = 'approvalpendingriskassessment';
+    // View opened by "Surveys to Complete". Same view link name in live and sandbox.
+    var SURVEY_VIEW = 'workcompletionsurvey';
     // Module linkName for work orders, opened by "View Work Orders". Module
     // API names are schema-level and shared across environments -- also
     // already portable as-is.
@@ -440,6 +461,25 @@
               window.facilioApp.interface.notify({
                 title: 'Navigation failed',
                 message: 'Could not open pending tasks. Please try again.',
+                type: 'error'
+              });
+            } catch (e) { /* best-effort */ }
+          }
+        },
+        openSurveyTasks() {
+          try {
+            var payload = {
+              module: INSPECTION_MODULE,
+              view: SURVEY_VIEW
+            };
+            window.facilioApp.log.info('Survey tasks tapped | openListView ' + JSON.stringify(payload));
+            window.facilioApp.interface.openListView(payload);
+          } catch (error) {
+            window.facilioApp.log.error('Survey tasks: openListView failed', error);
+            try {
+              window.facilioApp.interface.notify({
+                title: 'Navigation failed',
+                message: 'Could not open surveys. Please try again.',
                 type: 'error'
               });
             } catch (e) { /* best-effort */ }
